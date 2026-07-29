@@ -38,12 +38,19 @@
   }
   .card h2 { margin: 0 0 4px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
   .card p.hint { color: var(--muted); font-size: 12px; margin: 0 0 14px; }
-  .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+  .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 12px; flex-wrap: wrap; }
   .toggle button {
     border: none; background: var(--card); color: var(--muted); font-size: 13px; font-weight: 600;
-    padding: 6px 14px; cursor: pointer;
+    padding: 6px 14px; cursor: pointer; border-right: 1px solid var(--line);
   }
+  .toggle button:last-child { border-right: none; }
   .toggle button.active { background: var(--accent); color: #fff; }
+  .rangewrap { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .custom { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .custom input {
+    width: 72px; font-size: 14px; padding: 6px 8px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  }
   table { width: 100%; border-collapse: collapse; }
   th, td { padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--line); }
   tbody tr:last-child td { border-bottom: none; }
@@ -65,6 +72,7 @@
   .medalrow span { font-variant-numeric: tabular-nums; }
   .bar { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 6px; }
   .bar > i { display: block; height: 100%; background: var(--accent); }
+  .empty { color: var(--muted); font-size: 13px; padding: 8px 4px; }
   footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 8px; }
 </style>
 </head>
@@ -79,6 +87,21 @@
     <a href="leaderboard.html">Daily</a>
     <a href="stats.html" class="active">Cumulative ranking</a>
   </nav>
+
+  <div class="card">
+    <h2>🗓 Time window</h2>
+    <p class="hint">Filter every table below to a recent window. "Last N days" counts calendar days back from the most recent result.</p>
+    <div class="rangewrap">
+      <div class="toggle" id="rangeToggle">
+        <button data-days="7">7 days</button>
+        <button data-days="30">30 days</button>
+        <button data-days="100">100 days</button>
+        <button data-days="0" class="active">All time</button>
+      </div>
+      <label class="custom">or last <input id="customDays" type="number" min="1" placeholder="N"> days</label>
+    </div>
+    <p class="hint" id="rangeHint" style="margin-top:12px;margin-bottom:0"></p>
+  </div>
 
   <div class="card">
     <h2>🏅 Global medal leaderboard</h2>
@@ -108,86 +131,239 @@
     <table><thead id="time-head"></thead><tbody id="time-body"></tbody></table>
   </div>
 
+  <div class="card">
+    <h2>📊 % off best (per game)</h2>
+    <p class="hint" id="pctHint"></p>
+    <table><thead id="pct-head"></thead><tbody id="pct-body"></tbody></table>
+  </div>
+
   <footer>Generated from data/results.json · re-run <code>node get_games.js html</code> to refresh</footer>
 </div>
 
-<script id="data" type="application/json">{"players":[{"name":"J","initial":"J"},{"name":"S","initial":"S"},{"name":"P","initial":"P"}],"dayCount":51,"timeRows":[{"name":"Wend","emoji":"💱","cells":[{"initial":"J","seconds":1895,"plays":31,"total":"31:35","avg":"1:01"},{"initial":"S","seconds":1941,"plays":32,"total":"32:21","avg":"1:01"},{"initial":"P","seconds":1666,"plays":32,"total":"27:46","avg":"0:52"}]},{"name":"Zip","emoji":"🏁","cells":[{"initial":"J","seconds":848,"plays":51,"total":"14:08","avg":"0:17"},{"initial":"S","seconds":804,"plays":50,"total":"13:24","avg":"0:16"},{"initial":"P","seconds":855,"plays":51,"total":"14:15","avg":"0:17"}]},{"name":"Mini Sudoku","emoji":"✏️","cells":[{"initial":"J","seconds":2889,"plays":51,"total":"48:09","avg":"0:57"},{"initial":"S","seconds":4251,"plays":50,"total":"1:10:51","avg":"1:25"},{"initial":"P","seconds":3281,"plays":51,"total":"54:41","avg":"1:04"}]},{"name":"Queens","emoji":"👑","cells":[{"initial":"J","seconds":2095,"plays":51,"total":"34:55","avg":"0:41"},{"initial":"S","seconds":2498,"plays":51,"total":"41:38","avg":"0:49"},{"initial":"P","seconds":1441,"plays":51,"total":"24:01","avg":"0:28"}]},{"name":"Tango","emoji":"🌓","cells":[{"initial":"J","seconds":1572,"plays":51,"total":"26:12","avg":"0:31"},{"initial":"S","seconds":1963,"plays":50,"total":"32:43","avg":"0:39"},{"initial":"P","seconds":1854,"plays":51,"total":"30:54","avg":"0:36"}]},{"name":"Crossclimb","emoji":"🪜","cells":[{"initial":"J","seconds":2552,"plays":50,"total":"42:32","avg":"0:51"},{"initial":"S","seconds":2534,"plays":50,"total":"42:14","avg":"0:51"},{"initial":"P","seconds":2752,"plays":51,"total":"45:52","avg":"0:54"}]},{"name":"Pinpoint","emoji":"📌","cells":[{"initial":"J","seconds":125,"plays":44,"total":"125","avg":"2.8"},{"initial":"S","seconds":153,"plays":44,"total":"153","avg":"3.5"},{"initial":"P","seconds":129,"plays":44,"total":"129","avg":"2.9"}]},{"name":"Patches","emoji":"🩹","cells":[{"initial":"J","seconds":1188,"plays":51,"total":"19:48","avg":"0:23"},{"initial":"S","seconds":1122,"plays":51,"total":"18:42","avg":"0:22"},{"initial":"P","seconds":1402,"plays":51,"total":"23:22","avg":"0:27"}]}],"medals":[{"initial":"J","name":"J","gold":189,"silver":114,"bronze":77},{"initial":"S","name":"S","gold":88,"silver":130,"bronze":160},{"initial":"P","name":"P","gold":162,"silver":119,"bronze":101}],"wins":[{"initial":"J","name":"J","wins":31},{"initial":"S","name":"S","wins":9},{"initial":"P","name":"P","wins":25}],"elo":[{"initial":"J","name":"J","rating":1551,"history":[{"date":null,"rating":1500},{"date":"2026-05-08","rating":1533},{"date":"2026-05-11","rating":1588},{"date":"2026-05-12","rating":1546},{"date":"2026-05-14","rating":1560},{"date":"2026-05-15","rating":1592},{"date":"2026-05-16","rating":1500},{"date":"2026-05-18","rating":1605},{"date":"2026-05-19","rating":1636},{"date":"2026-05-20","rating":1635},{"date":"2026-05-21","rating":1633},{"date":"2026-05-23","rating":1567},{"date":"2026-05-24","rating":1535},{"date":"2026-05-27","rating":1538},{"date":"2026-05-30","rating":1537},{"date":"2026-05-31","rating":1531},{"date":"2026-06-01","rating":1547},{"date":"2026-06-03","rating":1464},{"date":"2026-06-04","rating":1519},{"date":"2026-06-06","rating":1516},{"date":"2026-06-09","rating":1575},{"date":"2026-06-11","rating":1582},{"date":"2026-06-12","rating":1553},{"date":"2026-06-13","rating":1572},{"date":"2026-06-14","rating":1547},{"date":"2026-06-15","rating":1503},{"date":"2026-06-16","rating":1590},{"date":"2026-06-17","rating":1539},{"date":"2026-06-18","rating":1535},{"date":"2026-06-19","rating":1569},{"date":"2026-06-20","rating":1588},{"date":"2026-06-21","rating":1517},{"date":"2026-06-22","rating":1493},{"date":"2026-06-23","rating":1571},{"date":"2026-06-25","rating":1600},{"date":"2026-07-06","rating":1557},{"date":"2026-07-08","rating":1574},{"date":"2026-07-09","rating":1505},{"date":"2026-07-10","rating":1460},{"date":"2026-07-11","rating":1445},{"date":"2026-07-12","rating":1542},{"date":"2026-07-13","rating":1496},{"date":"2026-07-14","rating":1526},{"date":"2026-07-15","rating":1469},{"date":"2026-07-16","rating":1527},{"date":"2026-07-17","rating":1503},{"date":"2026-07-20","rating":1551},{"date":"2026-07-21","rating":1522},{"date":"2026-07-22","rating":1585},{"date":"2026-07-23","rating":1561},{"date":"2026-07-24","rating":1541},{"date":"2026-07-25","rating":1551}]},{"initial":"S","name":"S","rating":1375,"history":[{"date":null,"rating":1500},{"date":"2026-05-08","rating":1471},{"date":"2026-05-11","rating":1403},{"date":"2026-05-12","rating":1344},{"date":"2026-05-14","rating":1346},{"date":"2026-05-15","rating":1339},{"date":"2026-05-16","rating":1385},{"date":"2026-05-18","rating":1372},{"date":"2026-05-19","rating":1337},{"date":"2026-05-20","rating":1397},{"date":"2026-05-21","rating":1414},{"date":"2026-05-23","rating":1469},{"date":"2026-05-24","rating":1493},{"date":"2026-05-27","rating":1441},{"date":"2026-05-30","rating":1481},{"date":"2026-05-31","rating":1508},{"date":"2026-06-01","rating":1458},{"date":"2026-06-03","rating":1464},{"date":"2026-06-04","rating":1430},{"date":"2026-06-06","rating":1429},{"date":"2026-06-09","rating":1400},{"date":"2026-06-11","rating":1405},{"date":"2026-06-12","rating":1414},{"date":"2026-06-13","rating":1417},{"date":"2026-06-14","rating":1400},{"date":"2026-06-15","rating":1491},{"date":"2026-06-16","rating":1468},{"date":"2026-06-17","rating":1423},{"date":"2026-06-18","rating":1427},{"date":"2026-06-19","rating":1416},{"date":"2026-06-20","rating":1472},{"date":"2026-06-21","rating":1499},{"date":"2026-06-22","rating":1492},{"date":"2026-06-23","rating":1414},{"date":"2026-06-25","rating":1417},{"date":"2026-07-06","rating":1426},{"date":"2026-07-08","rating":1425},{"date":"2026-07-09","rating":1489},{"date":"2026-07-10","rating":1543},{"date":"2026-07-11","rating":1545},{"date":"2026-07-12","rating":1454},{"date":"2026-07-13","rating":1513},{"date":"2026-07-14","rating":1462},{"date":"2026-07-15","rating":1524},{"date":"2026-07-16","rating":1429},{"date":"2026-07-17","rating":1422},{"date":"2026-07-20","rating":1488},{"date":"2026-07-21","rating":1447},{"date":"2026-07-22","rating":1439},{"date":"2026-07-23","rating":1439},{"date":"2026-07-24","rating":1438},{"date":"2026-07-25","rating":1375}]},{"initial":"P","name":"P","rating":1574,"history":[{"date":null,"rating":1500},{"date":"2026-05-08","rating":1496},{"date":"2026-05-11","rating":1509},{"date":"2026-05-12","rating":1609},{"date":"2026-05-14","rating":1594},{"date":"2026-05-15","rating":1569},{"date":"2026-05-16","rating":1614},{"date":"2026-05-18","rating":1523},{"date":"2026-05-19","rating":1527},{"date":"2026-05-20","rating":1468},{"date":"2026-05-21","rating":1453},{"date":"2026-05-23","rating":1464},{"date":"2026-05-24","rating":1472},{"date":"2026-05-27","rating":1520},{"date":"2026-05-30","rating":1482},{"date":"2026-05-31","rating":1461},{"date":"2026-06-01","rating":1495},{"date":"2026-06-03","rating":1572},{"date":"2026-06-04","rating":1552},{"date":"2026-06-06","rating":1555},{"date":"2026-06-09","rating":1525},{"date":"2026-06-11","rating":1513},{"date":"2026-06-12","rating":1534},{"date":"2026-06-13","rating":1511},{"date":"2026-06-14","rating":1553},{"date":"2026-06-15","rating":1505},{"date":"2026-06-16","rating":1442},{"date":"2026-06-17","rating":1538},{"date":"2026-06-18","rating":1538},{"date":"2026-06-19","rating":1515},{"date":"2026-06-20","rating":1440},{"date":"2026-06-21","rating":1483},{"date":"2026-06-22","rating":1515},{"date":"2026-06-23","rating":1515},{"date":"2026-06-25","rating":1483},{"date":"2026-07-06","rating":1517},{"date":"2026-07-08","rating":1502},{"date":"2026-07-09","rating":1506},{"date":"2026-07-10","rating":1497},{"date":"2026-07-11","rating":1509},{"date":"2026-07-12","rating":1504},{"date":"2026-07-13","rating":1491},{"date":"2026-07-14","rating":1511},{"date":"2026-07-15","rating":1507},{"date":"2026-07-16","rating":1544},{"date":"2026-07-17","rating":1575},{"date":"2026-07-20","rating":1462},{"date":"2026-07-21","rating":1531},{"date":"2026-07-22","rating":1476},{"date":"2026-07-23","rating":1500},{"date":"2026-07-24","rating":1521},{"date":"2026-07-25","rating":1574}]}],"eloParams":{"start":1500,"k":24}}</script>
+<script id="data" type="application/json">{"players":[{"initial":"J","name":"J"},{"initial":"S","name":"S"},{"initial":"P","name":"P"}],"pctPlayers":[{"initial":"J","name":"J"},{"initial":"S","name":"S"},{"initial":"P","name":"P"},{"initial":"B","name":"B"}],"dates":["2026-05-08","2026-05-11","2026-05-12","2026-05-14","2026-05-15","2026-05-16","2026-05-18","2026-05-19","2026-05-20","2026-05-21","2026-05-23","2026-05-24","2026-05-27","2026-05-30","2026-05-31","2026-06-01","2026-06-03","2026-06-04","2026-06-06","2026-06-09","2026-06-11","2026-06-12","2026-06-13","2026-06-14","2026-06-15","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-20","2026-06-21","2026-06-22","2026-06-23","2026-06-25","2026-07-06","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29"],"perDay":{"2026-05-08":{"games":{"Zip":{"J":60,"P":18,"B":21},"Mini Sudoku":{"J":50,"P":62,"B":81},"Queens":{"J":44,"S":98,"P":32,"B":80},"Tango":{"J":44,"P":54,"B":64},"Crossclimb":{"J":50,"P":93,"B":98},"Pinpoint":{"J":5,"S":5,"P":3,"B":5},"Patches":{"J":14,"S":15,"P":68,"B":49}}},"2026-05-11":{"games":{"Zip":{"J":5,"S":6,"P":6},"Mini Sudoku":{"J":41,"S":54,"P":36},"Queens":{"J":5,"S":7,"P":4},"Tango":{"J":20,"S":33,"P":21},"Crossclimb":{"J":41,"S":52,"P":49},"Pinpoint":{"J":1,"S":2,"P":1},"Patches":{"J":7,"S":7,"P":8}}},"2026-05-12":{"games":{"Zip":{"J":5,"S":13,"P":6},"Mini Sudoku":{"J":39,"S":52,"P":37},"Queens":{"J":17,"S":25,"P":10},"Tango":{"J":22,"S":39,"P":22},"Crossclimb":{"J":54,"S":53,"P":46},"Pinpoint":{"J":3,"S":4,"P":2},"Patches":{"J":10,"S":11,"P":9}}},"2026-05-14":{"games":{"Zip":{"J":6,"S":14,"P":38},"Mini Sudoku":{"J":57,"S":69,"P":54},"Queens":{"J":8,"S":10,"P":6},"Tango":{"J":32,"S":43,"P":37},"Crossclimb":{"J":67,"S":52,"P":30},"Pinpoint":{"J":1,"S":1,"P":1},"Patches":{"J":12,"S":37,"P":29}}},"2026-05-15":{"games":{"Zip":{"J":34,"S":18,"P":24,"B":26},"Mini Sudoku":{"J":60,"S":85,"P":59},"Queens":{"J":23,"S":43,"P":39,"B":53},"Tango":{"J":23,"S":32,"P":48,"B":44},"Crossclimb":{"J":34,"S":54,"P":35},"Pinpoint":{"J":3,"S":5,"P":4,"B":5},"Patches":{"J":20,"S":43,"P":17,"B":26}}},"2026-05-16":{"games":{"Zip":{"J":12,"S":18,"P":11,"B":18},"Mini Sudoku":{"J":109,"S":113,"P":38,"B":88},"Queens":{"J":120,"S":34,"P":43,"B":74},"Tango":{"J":51,"S":46,"P":42,"B":54},"Crossclimb":{"J":44,"S":57,"P":44,"B":60},"Pinpoint":{"J":4,"S":4,"P":4,"B":4},"Patches":{"J":51,"S":31,"P":24,"B":29}}},"2026-05-18":{"games":{"Zip":{"J":34,"S":44,"P":47,"B":19},"Mini Sudoku":{"J":65,"S":157,"P":86,"B":123},"Queens":{"J":28,"S":189,"P":116,"B":174},"Tango":{"J":36,"S":75,"P":60,"B":67},"Crossclimb":{"J":44,"S":74,"P":146,"B":78},"Pinpoint":{"J":2,"S":5,"P":1,"B":4},"Patches":{"J":19,"S":26,"P":32,"B":47}}},"2026-05-19":{"games":{"Zip":{"J":4,"S":7,"P":5,"B":6},"Mini Sudoku":{"J":25,"S":42,"P":29,"B":31},"Queens":{"J":15,"S":22,"P":5,"B":14},"Tango":{"J":24,"S":28,"P":26,"B":24},"Crossclimb":{"J":37,"S":42,"P":33,"B":30},"Pinpoint":{"J":1,"S":1,"P":2,"B":1},"Patches":{"J":5,"S":11,"P":8,"B":10}}},"2026-05-20":{"games":{"Zip":{"J":6,"S":13,"P":15,"B":8},"Mini Sudoku":{"J":48,"S":50,"P":51,"B":41},"Queens":{"J":6,"S":14,"P":13,"B":10},"Tango":{"J":16,"S":23,"P":20,"B":18},"Crossclimb":{"J":61,"S":53,"P":103,"B":98},"Pinpoint":{"J":3,"S":3,"P":5,"B":3},"Patches":{"J":10,"S":10,"P":7,"B":18}}},"2026-05-21":{"games":{"Zip":{"J":9,"S":9,"P":12,"B":9},"Mini Sudoku":{"J":71,"S":90,"P":57,"B":82},"Queens":{"J":38,"S":66,"P":38,"B":39},"Tango":{"J":26,"S":30,"P":33,"B":25},"Crossclimb":{"J":34,"S":36,"P":40,"B":60},"Pinpoint":{"J":5,"S":5,"P":3,"B":5},"Patches":{"J":11,"S":13,"P":23,"B":31}}},"2026-05-23":{"games":{"Zip":{"J":56,"S":22,"P":8,"B":32},"Mini Sudoku":{"J":60,"S":100,"P":57,"B":80},"Queens":{"J":47,"S":48,"P":59,"B":51},"Tango":{"J":28,"S":75,"P":31,"B":83},"Crossclimb":{"J":42,"S":36,"P":37,"B":56},"Pinpoint":{"J":1,"S":1,"P":1,"B":1},"Patches":{"J":30,"S":23,"P":74,"B":26}}},"2026-05-24":{"games":{"Zip":{"J":22,"S":31,"P":79},"Mini Sudoku":{"J":85,"S":99,"P":107},"Queens":{"J":80,"S":154,"P":112},"Tango":{"J":46,"S":44,"P":47},"Crossclimb":{"J":101,"S":56,"P":79},"Pinpoint":{"J":5,"S":2,"P":2},"Patches":{"J":43,"S":55,"P":34}}},"2026-05-27":{"games":{"Zip":{"J":9,"S":12,"P":10},"Mini Sudoku":{"J":63,"S":61,"P":48},"Queens":{"J":18,"S":25,"P":14},"Tango":{"J":18,"S":30,"P":49},"Crossclimb":{"J":68,"S":49,"P":46},"Patches":{"J":10,"S":27,"P":15}}},"2026-05-30":{"games":{"Zip":{"J":10,"S":8,"P":9,"B":11},"Mini Sudoku":{"J":79,"S":65,"P":92,"B":77},"Queens":{"J":33,"S":118,"P":33,"B":55},"Tango":{"J":27,"S":42,"P":46,"B":67},"Crossclimb":{"J":90,"S":83,"P":65,"B":94},"Patches":{"J":20,"S":36,"P":103,"B":116}}},"2026-05-31":{"games":{"Zip":{"J":22,"S":48,"P":44,"B":39},"Mini Sudoku":{"J":51,"S":138,"P":139,"B":113},"Queens":{"J":140,"S":99,"P":34,"B":88},"Tango":{"J":45,"S":44,"P":64,"B":53},"Crossclimb":{"J":67,"S":62,"P":58,"B":133},"Pinpoint":{"J":3,"S":5,"P":5,"B":5},"Patches":{"J":47,"S":34,"P":73,"B":61}}},"2026-06-01":{"games":{"Zip":{"J":29,"S":43,"P":64},"Mini Sudoku":{"J":75,"S":132,"P":69},"Queens":{"J":35,"S":89,"P":52},"Tango":{"J":39,"S":47,"P":57},"Crossclimb":{"J":63,"S":65,"P":45},"Pinpoint":{"J":3,"S":5,"P":3},"Patches":{"J":61,"S":34,"P":48}}},"2026-06-03":{"games":{"Zip":{"J":9,"S":10,"P":11,"B":13},"Mini Sudoku":{"J":61,"S":68,"P":46,"B":71},"Queens":{"J":12,"S":16,"P":9,"B":16},"Tango":{"J":97,"S":54,"P":45,"B":36},"Crossclimb":{"J":69,"S":60,"P":44,"B":64},"Pinpoint":{"J":2,"S":2,"P":1,"B":3},"Patches":{"J":11,"S":8,"P":10,"B":18}}},"2026-06-04":{"games":{"Zip":{"J":7,"S":12,"P":9,"B":12},"Mini Sudoku":{"J":56,"S":53,"P":57,"B":69},"Queens":{"J":16,"S":27,"P":14,"B":54},"Tango":{"J":24,"S":40,"P":27,"B":45},"Crossclimb":{"J":39,"S":43,"P":71,"B":57},"Pinpoint":{"J":2,"S":4,"P":2,"B":2},"Patches":{"J":29,"S":22,"P":16,"B":24}}},"2026-06-06":{"games":{"Zip":{"J":16,"S":16,"P":21},"Mini Sudoku":{"J":52,"S":83,"P":49},"Queens":{"J":47,"S":97,"P":43},"Tango":{"J":30,"S":35,"P":25},"Crossclimb":{"J":46,"S":89,"P":39},"Pinpoint":{"J":5,"S":5,"P":5},"Patches":{"J":33,"S":25,"P":64}}},"2026-06-09":{"games":{"Wend":{"S":89,"P":68},"Zip":{"J":7,"S":7,"P":9,"B":16},"Mini Sudoku":{"J":54,"S":62,"P":44,"B":28},"Queens":{"J":11,"S":20,"P":6,"B":25},"Tango":{"J":17,"S":26,"P":20,"B":34},"Crossclimb":{"J":26,"S":48,"P":43,"B":43},"Pinpoint":{"J":2,"S":2,"P":2,"B":2},"Patches":{"J":11,"S":16,"P":17,"B":13}}},"2026-06-11":{"games":{"Wend":{"J":8,"S":106,"P":6},"Zip":{"J":10,"S":13,"P":11,"B":10},"Mini Sudoku":{"J":61,"S":91,"P":95,"B":98},"Queens":{"J":14,"S":26,"P":16,"B":33},"Tango":{"J":24,"S":53,"P":28,"B":26},"Crossclimb":{"J":40,"S":40,"P":46,"B":73},"Pinpoint":{"J":5,"S":5,"P":5,"B":4},"Patches":{"J":32,"S":31,"P":19,"B":25}}},"2026-06-12":{"games":{"Wend":{"J":126,"S":72,"P":132},"Zip":{"J":10,"S":15,"P":10},"Mini Sudoku":{"J":69,"S":111,"P":109},"Queens":{"J":78,"S":70,"P":11},"Tango":{"J":31,"S":42,"P":32},"Crossclimb":{"J":70,"S":66,"P":34},"Pinpoint":{"J":5,"S":5,"P":4},"Patches":{"J":24,"S":28,"P":61}}},"2026-06-13":{"games":{"Wend":{"J":48,"S":47,"P":51,"B":204},"Zip":{"J":21,"S":50,"P":21,"B":21},"Mini Sudoku":{"J":62,"S":151,"P":83,"B":152},"Queens":{"J":228,"S":78,"P":11,"B":99},"Tango":{"J":33,"S":38,"P":43,"B":39},"Crossclimb":{"J":52,"S":70,"P":83,"B":53},"Patches":{"J":15,"S":18,"P":13,"B":67}}},"2026-06-14":{"games":{"Wend":{"J":58,"S":107,"P":112,"B":63},"Zip":{"J":164,"S":33,"P":49,"B":64},"Mini Sudoku":{"J":100,"S":187,"P":120,"B":136},"Queens":{"J":63,"S":76,"P":26,"B":72},"Tango":{"J":44,"S":70,"P":43,"B":82},"Crossclimb":{"J":30,"S":63,"P":49,"B":48},"Patches":{"J":74,"S":51,"P":37,"B":32}}},"2026-06-15":{"games":{"Wend":{"J":68,"S":69,"P":99},"Zip":{"J":5,"S":4,"P":4},"Mini Sudoku":{"J":25,"S":33,"P":30},"Queens":{"J":14,"S":6,"P":5},"Tango":{"J":35,"S":31,"P":28},"Crossclimb":{"J":59,"S":33,"P":38},"Pinpoint":{"J":1,"S":2,"P":3},"Patches":{"J":13,"S":10,"P":19}}},"2026-06-16":{"games":{"Wend":{"J":62,"S":125,"P":97,"B":116},"Zip":{"J":4,"S":13,"P":7,"B":6},"Mini Sudoku":{"J":38,"S":60,"P":56,"B":44},"Queens":{"J":14,"S":13,"P":14,"B":20},"Tango":{"J":19,"S":32,"P":28,"B":32},"Crossclimb":{"J":29,"S":42,"P":49,"B":50},"Pinpoint":{"J":2,"S":3,"P":3,"B":4},"Patches":{"J":9,"S":8,"P":11,"B":11}}},"2026-06-17":{"games":{"Wend":{"J":31,"S":33,"P":23,"B":21},"Zip":{"J":4,"S":5,"P":9,"B":6},"Mini Sudoku":{"J":46,"S":67,"P":37,"B":48},"Queens":{"J":144,"S":37,"P":22,"B":47},"Tango":{"J":22,"S":32,"P":23,"B":22},"Crossclimb":{"J":28,"S":35,"P":35,"B":38},"Pinpoint":{"J":5,"S":5,"P":2,"B":5},"Patches":{"J":19,"S":8,"P":7,"B":13}}},"2026-06-18":{"games":{"Wend":{"J":47,"S":80,"P":72,"B":47},"Zip":{"J":8,"S":7,"P":6,"B":20},"Mini Sudoku":{"J":61,"S":130,"P":108,"B":51},"Queens":{"J":31,"S":68,"P":23,"B":74},"Tango":{"J":25,"S":30,"P":24,"B":29},"Crossclimb":{"J":84,"S":63,"P":48,"B":57},"Pinpoint":{"J":3,"S":2,"P":5,"B":3},"Patches":{"J":23,"S":32,"P":60,"B":95}}},"2026-06-19":{"games":{"Wend":{"J":30,"S":46,"P":54,"B":22},"Zip":{"J":20,"S":9,"P":13,"B":14},"Mini Sudoku":{"J":56,"S":91,"P":59,"B":109},"Queens":{"J":30,"S":98,"P":100,"B":90},"Tango":{"J":24,"S":50,"P":46,"B":57},"Crossclimb":{"J":27,"S":33,"P":42,"B":29},"Pinpoint":{"J":5,"S":5,"P":4,"B":4},"Patches":{"J":31,"S":40,"P":26,"B":35}}},"2026-06-20":{"games":{"Wend":{"J":50,"S":67,"P":78,"B":184},"Zip":{"J":25,"S":39,"P":31,"B":11},"Mini Sudoku":{"J":85,"S":81,"P":131,"B":47},"Queens":{"J":37,"S":70,"P":64,"B":87},"Tango":{"J":30,"S":75,"P":62,"B":25},"Crossclimb":{"J":41,"S":38,"P":85,"B":55},"Pinpoint":{"J":1,"S":3,"P":4,"B":1},"Patches":{"J":41,"S":18,"P":27,"B":76}}},"2026-06-21":{"games":{"Wend":{"J":281,"S":157,"P":121,"B":234},"Zip":{"J":25,"S":25,"P":13,"B":51},"Mini Sudoku":{"J":65,"S":145,"P":129,"B":99},"Queens":{"J":124,"S":93,"P":44},"Tango":{"J":43,"S":41,"P":53,"B":87},"Crossclimb":{"J":46,"S":103,"P":78},"Pinpoint":{"J":5,"S":3,"P":3},"Patches":{"J":36,"S":31,"P":56,"B":165}}},"2026-06-22":{"games":{"Wend":{"J":45,"S":78,"P":44,"B":48},"Zip":{"J":6,"S":4,"P":15,"B":8},"Mini Sudoku":{"J":40,"S":52,"P":73,"B":34},"Queens":{"J":11,"S":7,"P":7,"B":11},"Tango":{"J":27,"S":19,"P":19,"B":23},"Crossclimb":{"J":83,"S":49,"P":56,"B":45},"Pinpoint":{"J":3,"S":5,"P":2,"B":5},"Patches":{"J":6,"S":13,"P":8,"B":9}}},"2026-06-23":{"games":{"Wend":{"J":29,"S":39,"P":41},"Zip":{"J":8,"S":8,"P":7},"Mini Sudoku":{"J":50,"S":51,"P":36},"Queens":{"J":7,"S":17,"P":12},"Tango":{"J":23,"S":32,"P":24},"Crossclimb":{"J":36,"S":46,"P":47},"Patches":{"J":12,"S":13,"P":12}}},"2026-06-25":{"games":{"Wend":{"J":33,"S":63,"P":37,"B":46},"Zip":{"J":11,"S":12,"P":41,"B":23},"Mini Sudoku":{"J":59,"S":124,"P":51,"B":133},"Queens":{"J":15,"S":14,"P":11,"B":26},"Tango":{"J":26,"S":45,"P":52,"B":31},"Crossclimb":{"J":41,"S":65,"P":45,"B":43},"Pinpoint":{"J":1,"S":5,"P":2,"B":1},"Patches":{"J":16,"S":15,"P":21,"B":25}}},"2026-07-06":{"games":{"Wend":{"J":28,"S":18,"P":10},"Zip":{"J":10,"S":10,"P":7},"Mini Sudoku":{"J":33,"S":43,"P":35},"Queens":{"J":9,"S":8,"P":7},"Tango":{"J":21,"S":21,"P":23},"Crossclimb":{"J":59,"S":43,"P":71},"Pinpoint":{"J":2,"S":5,"P":1},"Patches":{"J":6,"S":11,"P":9}}},"2026-07-08":{"games":{"Wend":{"J":13,"S":16,"P":17},"Zip":{"J":4,"S":5,"P":5},"Mini Sudoku":{"J":40,"S":57,"P":52},"Queens":{"J":7,"S":18,"P":6},"Tango":{"J":33,"S":23,"P":20},"Crossclimb":{"J":34,"S":54,"P":39},"Patches":{"J":30,"S":27,"P":32}}},"2026-07-09":{"games":{"Wend":{"J":54,"S":44,"P":33,"B":19},"Zip":{"J":6,"S":7,"P":8,"B":7},"Mini Sudoku":{"J":40,"S":82,"P":42,"B":40},"Queens":{"J":47,"S":45,"P":19,"B":41},"Tango":{"J":38,"S":35,"P":38,"B":33},"Crossclimb":{"S":33,"P":33,"B":25},"Patches":{"J":26,"S":12,"P":17,"B":29}}},"2026-07-10":{"games":{"Wend":{"J":54,"S":44,"P":33,"B":19},"Zip":{"J":6,"S":7,"P":8,"B":7},"Mini Sudoku":{"J":40,"S":82,"P":42,"B":40},"Queens":{"J":47,"S":45,"P":19,"B":41},"Tango":{"J":38,"S":35,"P":38,"B":33},"Crossclimb":{"J":33,"S":33,"P":33,"B":25},"Pinpoint":{"J":2,"S":1,"P":2,"B":1},"Patches":{"J":26,"S":12,"P":17,"B":29}}},"2026-07-11":{"games":{"Wend":{"J":53,"S":62,"P":49,"B":54},"Zip":{"J":27,"S":46,"P":26,"B":18},"Mini Sudoku":{"J":69,"S":79,"P":54,"B":75},"Queens":{"J":60,"S":39,"P":50,"B":48},"Tango":{"J":29,"S":24,"P":30,"B":33},"Crossclimb":{"J":129,"S":43,"P":93,"B":99},"Pinpoint":{"J":2,"S":3,"P":5,"B":2},"Patches":{"J":19,"S":18,"P":18,"B":28}}},"2026-07-12":{"games":{"Wend":{"J":105,"S":133,"P":122,"B":155},"Zip":{"J":22,"S":31,"P":18,"B":15},"Mini Sudoku":{"J":99,"S":87,"P":107},"Queens":{"J":60,"S":99,"P":97},"Tango":{"J":45,"S":77,"P":51},"Crossclimb":{"J":43,"S":56,"P":46},"Pinpoint":{"J":5,"S":1,"P":3},"Patches":{"J":22,"S":32,"P":28,"B":29}}},"2026-07-13":{"games":{"Wend":{"J":12,"S":9,"P":16,"B":10},"Zip":{"J":9,"S":6,"P":5,"B":7},"Mini Sudoku":{"J":39,"S":49,"P":56,"B":32},"Queens":{"J":8,"S":7,"P":6,"B":8},"Tango":{"J":20,"S":20,"P":20,"B":23},"Crossclimb":{"J":60,"S":38,"P":53,"B":46},"Pinpoint":{"J":1,"S":2,"P":1,"B":2},"Patches":{"J":13,"S":11,"P":17,"B":17}}},"2026-07-14":{"games":{"Wend":{"J":39,"S":29,"P":16},"Zip":{"J":6,"S":7,"P":8},"Mini Sudoku":{"J":34,"S":60,"P":32},"Queens":{"J":8,"S":12,"P":7},"Tango":{"J":23,"S":23,"P":31},"Crossclimb":{"J":33,"S":38,"P":44},"Pinpoint":{"J":2,"S":2,"P":2},"Patches":{"J":15,"S":19,"P":10}}},"2026-07-15":{"games":{"Wend":{"J":21,"S":16,"P":19,"B":25},"Zip":{"J":10,"S":10,"P":10,"B":11},"Mini Sudoku":{"J":55,"S":86,"P":101,"B":42},"Queens":{"J":31,"S":24,"P":16,"B":15},"Tango":{"J":31,"S":29,"P":24,"B":21},"Crossclimb":{"J":38,"S":37,"P":52},"Pinpoint":{"J":2,"S":2,"P":3,"B":2},"Patches":{"J":42,"S":14,"P":10,"B":16}}},"2026-07-16":{"games":{"Wend":{"J":161,"S":62,"P":63,"B":144},"Zip":{"J":6,"S":9,"P":7,"B":8},"Mini Sudoku":{"J":72,"S":73,"P":50,"B":64},"Queens":{"J":19,"S":20,"P":13,"B":26},"Tango":{"J":25,"S":29,"P":22,"B":28},"Crossclimb":{"J":27,"S":32,"P":43,"B":31},"Pinpoint":{"J":3,"S":5,"P":5,"B":5},"Patches":{"J":18,"S":24,"P":9,"B":22}}},"2026-07-17":{"games":{"Wend":{"J":93,"S":75,"P":35,"B":119},"Zip":{"J":15,"S":13,"P":11,"B":11},"Mini Sudoku":{"J":56,"S":86,"P":45,"B":65},"Queens":{"J":105,"S":85,"P":42},"Tango":{"J":25,"S":33,"P":29},"Crossclimb":{"J":57,"S":37,"P":49},"Pinpoint":{"J":1,"S":5,"P":5},"Patches":{"J":21,"S":25,"P":21,"B":43}}},"2026-07-20":{"games":{"Wend":{"J":23,"S":13,"P":18,"B":20},"Zip":{"J":5,"S":9,"P":8,"B":7},"Mini Sudoku":{"J":32,"S":75,"P":59,"B":43},"Queens":{"J":16,"S":5,"P":8,"B":10},"Tango":{"J":20,"S":23,"P":33,"B":23},"Crossclimb":{"J":23,"S":33,"P":38,"B":30},"Pinpoint":{"J":2,"S":1,"P":2,"B":1},"Patches":{"J":7,"S":10,"P":13,"B":12}}},"2026-07-21":{"games":{"Wend":{"J":22,"S":42,"P":22,"B":20},"Zip":{"J":6,"S":5,"P":6,"B":7},"Mini Sudoku":{"J":52,"S":86,"P":52,"B":91},"Queens":{"J":13,"S":13,"P":7,"B":14},"Tango":{"J":22,"S":31,"P":25,"B":23},"Crossclimb":{"J":40,"S":70,"P":78,"B":58},"Pinpoint":{"J":4,"S":4,"P":3,"B":5},"Patches":{"J":11,"S":10,"P":9,"B":15}}},"2026-07-22":{"games":{"Wend":{"J":35,"S":41,"P":43,"B":33},"Zip":{"J":8,"S":11,"P":8,"B":10},"Mini Sudoku":{"J":51,"S":63,"P":65,"B":53},"Queens":{"J":9,"S":10,"P":32,"B":25},"Tango":{"J":25,"S":30,"P":34,"B":28},"Crossclimb":{"J":50,"S":37,"P":51,"B":48},"Pinpoint":{"J":1,"S":5,"P":1,"B":1},"Patches":{"J":15,"S":20,"P":13,"B":36}}},"2026-07-23":{"games":{"Wend":{"J":23,"S":56,"P":31},"Zip":{"J":9,"S":10,"P":12},"Mini Sudoku":{"J":40,"S":48,"P":43},"Queens":{"J":27,"S":42,"P":12},"Tango":{"J":29,"S":36,"P":59},"Crossclimb":{"J":67,"S":46,"P":69},"Pinpoint":{"J":4,"S":4,"P":3},"Patches":{"J":43,"S":39,"P":19}}},"2026-07-24":{"games":{"Wend":{"J":125,"S":47,"P":48},"Zip":{"J":7,"S":9,"P":7},"Mini Sudoku":{"J":60,"S":94,"P":50},"Queens":{"J":39,"S":106,"P":34},"Tango":{"J":46,"S":74,"P":56},"Crossclimb":{"J":73,"S":47,"P":43},"Pinpoint":{"J":3,"S":5,"P":5},"Patches":{"J":51,"S":15,"P":91}}},"2026-07-25":{"games":{"Wend":{"J":118,"S":56,"P":56,"B":66},"Zip":{"J":9,"S":21,"P":18,"B":12},"Mini Sudoku":{"J":59,"S":154,"P":62,"B":98},"Queens":{"J":37,"S":46,"P":18},"Tango":{"J":31,"S":44,"P":42,"B":94},"Crossclimb":{"J":43,"S":47,"P":36},"Pinpoint":{"J":4,"S":4,"P":4},"Patches":{"J":18,"S":23,"P":13,"B":23}}},"2026-07-26":{"games":{"Wend":{"J":81,"S":106,"P":61},"Zip":{"J":17,"S":18,"P":19},"Mini Sudoku":{"J":56,"S":199,"P":60},"Queens":{"J":47,"S":59,"P":39},"Tango":{"J":90,"S":72,"P":109},"Crossclimb":{"J":39,"S":47,"P":47},"Pinpoint":{"J":5,"S":5,"P":5},"Patches":{"J":56,"S":82,"P":40}}},"2026-07-27":{"games":{"Wend":{"J":17,"S":36,"P":22,"B":22},"Zip":{"J":5,"S":5,"P":5,"B":6},"Mini Sudoku":{"J":33,"S":50,"P":43,"B":28},"Queens":{"J":6,"S":8,"P":6,"B":8},"Tango":{"J":16,"S":23,"P":16,"B":17},"Crossclimb":{"J":38,"S":43,"P":42,"B":30},"Pinpoint":{"J":1,"S":4,"P":2,"B":2},"Patches":{"J":9,"S":55,"P":10,"B":9}}},"2026-07-28":{"games":{"Wend":{"J":37,"S":25,"P":11},"Zip":{"J":9,"S":18,"P":5},"Mini Sudoku":{"J":50,"S":71,"P":70},"Queens":{"J":11,"S":15,"P":7},"Tango":{"J":26,"S":47,"P":26},"Crossclimb":{"J":43,"S":32,"P":33},"Pinpoint":{"J":2,"S":4,"P":2},"Patches":{"J":9,"S":8,"P":35}}},"2026-07-29":{"games":{"Wend":{"J":13,"S":55,"P":21},"Zip":{"J":3,"S":5,"P":4},"Mini Sudoku":{"J":54,"S":59,"P":61},"Queens":{"J":33,"S":19,"P":11},"Tango":{"J":68,"S":41,"P":27},"Crossclimb":{"S":41,"P":35},"Pinpoint":{"J":2,"S":3,"P":2},"Patches":{"J":9,"S":13,"P":11}}}},"gamesMeta":[{"name":"Wend","emoji":"💱","isCount":false},{"name":"Zip","emoji":"🏁","isCount":false},{"name":"Mini Sudoku","emoji":"✏️","isCount":false},{"name":"Queens","emoji":"👑","isCount":false},{"name":"Tango","emoji":"🌓","isCount":false},{"name":"Crossclimb","emoji":"🪜","isCount":false},{"name":"Pinpoint","emoji":"📌","isCount":true},{"name":"Patches","emoji":"🩹","isCount":false}],"eloParams":{"start":1500,"k":24}}</script>
 <script>
   const S = JSON.parse(document.getElementById('data').textContent);
-  const players = S.players;
-  function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  const players = S.players;          // J/S/P — medals, Elo, wins, time
+  const pctPlayers = S.pctPlayers;    // J/S/P/B — % off best
+  const GAMES = S.gamesMeta;
+  const datesAsc = S.dates.slice().sort();  // ascending
   const POS = ['🥇','🥈','🥉'];
   const inits = players.map(p => p.initial);
+  function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-  // ── Text that used to be server-interpolated, now filled from the data ──
-  document.getElementById('sub').textContent =
-    'Cumulative ranking across ' + S.dayCount + ' day(s) — ' + inits.join(' · ') + ' only.';
-  document.getElementById('medalHint').textContent =
-    'Medals recomputed head-to-head among ' + inits.join('/') + ', over games where at least two of them played.';
-  document.getElementById('eloHint').textContent =
-    'Start ' + S.eloParams.start + ', K=' + S.eloParams.k + '. Every day, each pair that played the same game is one match (faster time wins, equal = draw).';
+  // ── Formatting helpers (mirror the old Node ones) ──
+  function fmtSeconds(total) {
+    total = Math.round(total);
+    const h = Math.floor(total/3600), m = Math.floor((total%3600)/60), s = total%60;
+    if (h > 0) return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    return m + ':' + String(s).padStart(2,'0');
+  }
+  function isCount(gameName){ return (GAMES.find(g => g.name === gameName) || {}).isCount; }
 
-  // ── Medal leaderboard: rank by gold, then silver, then bronze ──
-  const medals = S.medals.slice().sort((a,b) => b.gold-a.gold || b.silver-a.silver || b.bronze-a.bronze);
-  document.getElementById('medals').innerHTML = medals.map((m,i) =>
-    '<div class="rankcard"><div class="pos">'+(POS[i]||(i+1))+'</div>'
-    + '<div class="who"><b>'+esc(m.name)+'</b><span>'+esc(m.initial)+'</span></div>'
-    + '<div class="medalrow"><span>🥇 '+m.gold+'</span><span>🥈 '+m.silver+'</span><span>🥉 '+m.bronze+'</span></div></div>'
-  ).join('');
+  // ── Date-window filter (calendar days back from the most recent result) ──
+  function parseYMD(k){ const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d); }
+  function ymd(dt){ return dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0'); }
+  function filterDates(nDays) {
+    if (!nDays || nDays <= 0) return datesAsc.slice();     // All time
+    if (!datesAsc.length) return [];
+    const anchor = parseYMD(datesAsc[datesAsc.length - 1]);
+    const start = new Date(anchor); start.setDate(start.getDate() - (nDays - 1));
+    const startKey = ymd(start);
+    return datesAsc.filter(k => k >= startKey);
+  }
 
-  // ── Elo: rank by rating, bar scaled between min and max ──
-  const elo = S.elo.slice().sort((a,b) => b.rating-a.rating);
-  const lo = Math.min(...elo.map(e=>e.rating)), hi = Math.max(...elo.map(e=>e.rating));
-  const span = Math.max(1, hi-lo);
-  document.getElementById('elo').innerHTML = elo.map((e,i) =>
-    '<div class="rankcard"><div class="pos">'+(POS[i]||(i+1))+'</div>'
-    + '<div class="who"><b>'+esc(e.name)+'</b><span>'+esc(e.initial)+'</span>'
-    + '<div class="bar"><i style="width:'+Math.round(20+70*(e.rating-lo)/span)+'%"></i></div></div>'
-    + '<div class="val">'+e.rating+'</div></div>'
-  ).join('');
+  // ── Aggregate every stat over a set of dates (ascending). Mirrors computeStats. ──
+  function aggregate(dates) {
+    const medals = {}, wins = {}, elo = {}, cumTime = {}, pctAcc = {};
+    players.forEach(p => { medals[p.initial] = {gold:0,silver:0,bronze:0}; wins[p.initial]=0; elo[p.initial]=S.eloParams.start; });
+    GAMES.forEach(g => {
+      cumTime[g.name] = {}; players.forEach(p => cumTime[g.name][p.initial] = {seconds:0, plays:0});
+      pctAcc[g.name] = {};  pctPlayers.forEach(p => pctAcc[g.name][p.initial] = {sum:0, n:0});
+    });
+    const MEDAL = ['gold','silver','bronze'];
 
-  // ── Daily winners ──
-  const wins = S.wins.slice().sort((a,b) => b.wins-a.wins);
-  const maxWins = Math.max(1, ...wins.map(w=>w.wins));
-  document.getElementById('wins').innerHTML = wins.map((w,i) =>
-    '<div class="rankcard"><div class="pos">'+(POS[i]||(i+1))+'</div>'
-    + '<div class="who"><b>'+esc(w.name)+'</b><span>'+esc(w.initial)+'</span>'
-    + '<div class="bar"><i style="width:'+Math.round(100*w.wins/maxWins)+'%"></i></div></div>'
-    + '<div class="val">'+w.wins+'</div></div>'
-  ).join('');
+    for (const date of dates) {
+      const dayGames = (S.perDay[date] || {}).games || {};
+      const dayGold = {}; players.forEach(p => dayGold[p.initial]=0);
+      let contest = false;
 
-  // ── Cumulative time table (Total / Average toggle) ──
-  document.getElementById('time-head').innerHTML =
-    '<tr><th class="game">Game</th>'
-    + players.map(p => '<th title="'+esc(p.name)+'">'+esc(p.initial)+'</th>').join('') + '</tr>';
+      for (const game of GAMES) {
+        const byIni = dayGames[game.name] || {};
 
-  function renderTime(mode) {
-    document.getElementById('time-body').innerHTML = S.timeRows.map(row => {
-      // best = lowest value among players who actually played (plays > 0)
-      const vals = row.cells.map(c => (c.plays>0 ? (mode==='avg' ? c.seconds/c.plays : c.seconds) : Infinity));
+        // Cumulative time — every J/S/P play counts.
+        players.forEach(p => {
+          if (byIni[p.initial] != null) { cumTime[game.name][p.initial].seconds += byIni[p.initial]; cumTime[game.name][p.initial].plays++; }
+        });
+
+        // Medals + daily gold among J/S/P who played (need ≥2).
+        const played = players.map(p => ({i:p.initial, sec:byIni[p.initial]})).filter(x => x.sec != null);
+        if (played.length >= 2) {
+          contest = true;
+          const sorted = played.slice().sort((a,b) => a.sec - b.sec);
+          let rank = 0, k = 0;
+          while (k < sorted.length) {
+            const sc = sorted[k].sec; const grp = [];
+            while (k < sorted.length && sorted[k].sec === sc) { grp.push(sorted[k]); k++; }
+            const mk = MEDAL[Math.min(rank, 2)];
+            grp.forEach(x => { medals[x.i][mk]++; if (mk === 'gold') dayGold[x.i]++; });
+            rank += grp.length;
+          }
+          // Elo round-robin over J/S/P pairs that played this game.
+          for (let a = 0; a < played.length; a++) for (let b = a+1; b < played.length; b++) {
+            const A = played[a].i, B = played[b].i, sa = played[a].sec, sb = played[b].sec;
+            const scoreA = sa < sb ? 1 : sa > sb ? 0 : 0.5;
+            const expA = 1 / (1 + Math.pow(10, (elo[B]-elo[A])/400));
+            elo[A] += S.eloParams.k * (scoreA - expA);
+            elo[B] += S.eloParams.k * ((1-scoreA) - (1-expA));
+          }
+        }
+
+        // % off best — reference is best among the 4 (JSPB) who played (need ≥2).
+        const played4 = pctPlayers.map(p => ({i:p.initial, sec:byIni[p.initial]})).filter(x => x.sec != null);
+        if (played4.length >= 2) {
+          const ref = Math.min(...played4.map(x => x.sec));
+          if (ref > 0) played4.forEach(x => { pctAcc[game.name][x.i].sum += (x.sec - ref)/ref*100; pctAcc[game.name][x.i].n++; });
+        }
+      }
+
+      if (contest) {
+        const maxGold = Math.max(...players.map(p => dayGold[p.initial]));
+        if (maxGold > 0) players.forEach(p => { if (dayGold[p.initial] === maxGold) wins[p.initial]++; });
+      }
+    }
+
+    return {
+      medals: players.map(p => ({initial:p.initial, name:p.name, ...medals[p.initial]})),
+      wins:   players.map(p => ({initial:p.initial, name:p.name, wins:wins[p.initial]})),
+      elo:    players.map(p => ({initial:p.initial, name:p.name, rating:Math.round(elo[p.initial])})),
+      timeRows: GAMES.map(g => ({ name:g.name, emoji:g.emoji, isCount:g.isCount,
+        cells: players.map(p => cumTime[g.name][p.initial]) })),
+      // Reference (0% baseline) is computed among all 4 in pctAcc, but only J/S/P are shown.
+      pctRows: GAMES.map(g => ({ name:g.name, emoji:g.emoji,
+        cells: players.map(p => pctAcc[g.name][p.initial]) })),
+    };
+  }
+
+  // ── Renderers ──
+  function rankCards(el, list, valFn, extraFn) {
+    document.getElementById(el).innerHTML = list.map((x,i) =>
+      '<div class="rankcard"><div class="pos">'+(POS[i]||(i+1))+'</div>'
+      + '<div class="who"><b>'+esc(x.name)+'</b><span>'+esc(x.initial)+'</span>'+(extraFn?extraFn(x):'')+'</div>'
+      + valFn(x) + '</div>'
+    ).join('');
+  }
+
+  let timeMode = 'total';
+  function render(agg, nDays, dateCount) {
+    // Medals: rank gold, silver, bronze
+    const medals = agg.medals.slice().sort((a,b) => b.gold-a.gold || b.silver-a.silver || b.bronze-a.bronze);
+    rankCards('medals', medals,
+      m => '<div class="medalrow"><span>🥇 '+m.gold+'</span><span>🥈 '+m.silver+'</span><span>🥉 '+m.bronze+'</span></div>');
+
+    // Elo: rank by rating, bar scaled between window min/max
+    const elo = agg.elo.slice().sort((a,b) => b.rating-a.rating);
+    const lo = Math.min(...elo.map(e=>e.rating)), hi = Math.max(...elo.map(e=>e.rating)), span = Math.max(1, hi-lo);
+    rankCards('elo', elo,
+      e => '<div class="val">'+e.rating+'</div>',
+      e => '<div class="bar"><i style="width:'+Math.round(20+70*(e.rating-lo)/span)+'%"></i></div>');
+
+    // Daily winners
+    const wins = agg.wins.slice().sort((a,b) => b.wins-a.wins);
+    const maxWins = Math.max(1, ...wins.map(w=>w.wins));
+    rankCards('wins', wins,
+      w => '<div class="val">'+w.wins+'</div>',
+      w => '<div class="bar"><i style="width:'+Math.round(100*w.wins/maxWins)+'%"></i></div>');
+
+    // % off best — show J/S/P columns (reference baseline still includes B)
+    document.getElementById('pct-head').innerHTML =
+      '<tr><th class="game">Game</th>' + players.map(p => '<th title="'+esc(p.name)+'">'+esc(p.initial)+'</th>').join('') + '</tr>';
+    document.getElementById('pct-body').innerHTML = agg.pctRows.map(row => {
+      const avgs = row.cells.map(c => c.n>0 ? c.sum/c.n : Infinity);
+      const best = Math.min(...avgs);
+      const cells = row.cells.map((c,idx) => {
+        if (c.n === 0) return '<td class="num sub2">—</td>';
+        const isBest = avgs[idx] === best && isFinite(best);
+        const v = avgs[idx];
+        return '<td class="num'+(isBest?' best':'')+'">'+(v<0.05?'0%':'+'+v.toFixed(1)+'%')
+          + '<div class="sub2">'+c.n+(c.n===1?' day':' days')+'</div></td>';
+      }).join('');
+      return '<tr><td class="game">'+row.emoji+'<span class="gname">'+esc(row.name)+'</span></td>'+cells+'</tr>';
+    }).join('');
+
+    // Cumulative time (3 players) with Total/Average toggle
+    document.getElementById('time-head').innerHTML =
+      '<tr><th class="game">Game</th>' + players.map(p => '<th title="'+esc(p.name)+'">'+esc(p.initial)+'</th>').join('') + '</tr>';
+    renderTime(agg);
+
+    // Labels
+    const scope = nDays > 0 ? ('last ' + nDays + ' days') : 'all time';
+    document.getElementById('sub').textContent =
+      'Cumulative ranking — ' + inits.join(' · ') + '.';
+    document.getElementById('rangeHint').textContent =
+      'Showing ' + scope + ': ' + dateCount + ' day(s) with data' + (dateCount ? ' (' + datesInWindow[0] + ' → ' + datesInWindow[datesInWindow.length-1] + ').' : '.');
+    document.getElementById('medalHint').textContent =
+      'Medals head-to-head among ' + inits.join('/') + ', over games where at least two of them played.';
+    document.getElementById('eloHint').textContent =
+      'Start ' + S.eloParams.start + ', K=' + S.eloParams.k + ', recomputed over the window. Each pair that played the same game is one match.';
+    document.getElementById('pctHint').textContent =
+      'Average % slower than the day’s best among all four (' + pctPlayers.map(p=>p.initial).join('/') + '); only ' + inits.join('/') + ' shown. Only days where ≥2 of the four played count.';
+  }
+
+  function renderTime(agg) {
+    document.getElementById('time-body').innerHTML = agg.timeRows.map(row => {
+      const vals = row.cells.map(c => c.plays>0 ? (timeMode==='avg' ? c.seconds/c.plays : c.seconds) : Infinity);
       const best = Math.min(...vals);
       const cells = row.cells.map((c,idx) => {
         if (c.plays === 0) return '<td class="num sub2">—</td>';
         const isBest = vals[idx] === best && isFinite(best);
-        return '<td class="num'+(isBest?' best':'')+'">'+esc(mode==='avg'?c.avg:c.total)
-          + '<div class="sub2">'+c.plays+(c.plays===1?' play':' plays')+'</div></td>';
+        const v = timeMode==='avg' ? c.seconds/c.plays : c.seconds;
+        const txt = row.isCount ? (timeMode==='avg' ? v.toFixed(1) : String(v)) : fmtSeconds(v);
+        return '<td class="num'+(isBest?' best':'')+'">'+esc(txt)+'<div class="sub2">'+c.plays+(c.plays===1?' play':' plays')+'</div></td>';
       }).join('');
       return '<tr><td class="game">'+row.emoji+'<span class="gname">'+esc(row.name)+'</span></td>'+cells+'</tr>';
     }).join('');
   }
-  const hints = {
-    total: 'Sum of all logged times. Play counts differ, so compare with Average too.',
+
+  // ── Wire up filter + toggle ──
+  let curDays = 0;           // 0 = all time
+  let datesInWindow = [];
+  function apply(nDays) {
+    curDays = nDays;
+    datesInWindow = filterDates(nDays);
+    const agg = aggregate(datesInWindow);
+    render(agg, nDays, datesInWindow.length);
+  }
+
+  document.querySelectorAll('#rangeToggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#rangeToggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('customDays').value = '';
+      apply(Number(btn.dataset.days));
+    });
+  });
+  document.getElementById('customDays').addEventListener('input', e => {
+    const n = Number(e.target.value);
+    if (n > 0) {
+      document.querySelectorAll('#rangeToggle button').forEach(b => b.classList.remove('active'));
+      apply(n);
+    }
+  });
+  const timeHints = {
+    total: 'Sum of all logged times in the window. Play counts differ, so compare with Average too.',
     avg:   'Average time per play — fairer when players logged different numbers of days.',
   };
   document.querySelectorAll('#timeToggle button').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('#timeToggle button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById('timeHint').textContent = hints[btn.dataset.mode];
-      renderTime(btn.dataset.mode);
+      timeMode = btn.dataset.mode;
+      document.getElementById('timeHint').textContent = timeHints[timeMode];
+      apply(curDays);
     });
   });
-  renderTime('total');
+
+  apply(0); // default: all time
 </script>
 </body>
 </html>
