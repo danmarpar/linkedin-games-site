@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkedIn Games — Charts</title>
+<style>
+  :root {
+    --bg: #f3f2ef; --card: #ffffff; --ink: #1d2226; --muted: #56687a;
+    --line: #e6e3df; --accent: #0a66c2; --alt: #fafaf8; --grid: #e1e0d9; --axis: #c3c2b7;
+    /* player series (colorblind-safe, validated) */
+    --p-J: #0072B2; --p-S: #D55E00; --p-P: #009E73; --p-B: #CC79A7;
+    /* diverging poles for the head-to-head heatmap */
+    --div-a: #2a78d6; --div-mid: #f0efec; --div-b: #e34948;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1f23; --card: #26292d; --ink: #e9e5df; --muted: #a3adba;
+      --line: #3a3f45; --accent: #70b5f9; --alt: #2b2f34; --grid: #2c2c2a; --axis: #383835;
+      --p-J: #3d9ae0; --p-S: #e0863a; --p-P: #20ac80; --p-B: #d97ab0;
+      --div-a: #3987e5; --div-mid: #383835; --div-b: #e66767;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.4; padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  header h1 { font-size: 22px; margin: 0; }
+  .in { color: #fff; background: var(--accent); border-radius: 4px; padding: 1px 6px; font-weight: 700; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 4px; }
+  nav { display: flex; gap: 8px; margin: 14px 0 18px; }
+  nav a { text-decoration: none; font-size: 14px; font-weight: 600; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--card); }
+  nav a.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 18px; }
+  .card h2 { margin: 0 0 4px; font-size: 16px; }
+  .card p.hint { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+  .controls { position: sticky; top: 0; z-index: 10; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin-bottom: 10px; }
+  .row:last-child { margin-bottom: 0; }
+  .row > .lbl { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; min-width: 66px; }
+  .toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .toggle button { border: none; border-right: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 13px; font-weight: 600; padding: 6px 12px; cursor: pointer; }
+  .toggle button:last-child { border-right: none; }
+  .toggle button.active { background: var(--accent); color: #fff; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; cursor: pointer; background: var(--card); color: var(--muted); }
+  .chip .dot { width: 12px; height: 12px; border-radius: 3px; }
+  .chip.on { color: var(--ink); border-color: currentColor; }
+  .chip.off { opacity: .45; }
+  .infowrap { position: relative; display: inline-flex; margin-left: -8px; }
+  .info { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 12px; cursor: help; background: var(--card); }
+  .info:hover, .info:focus { color: var(--accent); border-color: var(--accent); outline: none; }
+  .tip { position: absolute; top: 26px; left: 0; z-index: 40; width: 300px; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 12px; line-height: 1.5; box-shadow: 0 10px 30px rgba(0,0,0,.22); visibility: hidden; opacity: 0; transition: opacity .12s; }
+  .tip b { color: var(--ink); }
+  .infowrap:hover .tip, .infowrap:focus-within .tip, .tip.show { visibility: visible; opacity: 1; }
+  @media (max-width: 520px) { .tip { left: auto; right: 0; } }
+  select, input[type=number] { font-size: 14px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  input[type=number] { width: 70px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+  .legend .item { display: inline-flex; align-items: center; gap: 6px; }
+  .legend svg { display: block; }
+  svg.chart { width: 100%; height: auto; display: block; }
+  .chart text { fill: var(--muted); font-size: 11px; }
+  .chart .axis { stroke: var(--axis); stroke-width: 1; }
+  .chart .grid { stroke: var(--grid); stroke-width: 1; }
+  .chart .lbl-end { font-weight: 700; font-size: 12px; }
+  .chart rect.cell text { fill: var(--ink); }
+  .datatable { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .datatable th, .datatable td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: center; font-variant-numeric: tabular-nums; }
+  .datatable th:first-child, .datatable td:first-child { text-align: left; }
+  .datatable th { color: var(--muted); font-weight: 600; }
+  .empty { color: var(--muted); font-size: 13px; padding: 20px 4px; text-align: center; }
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><span class="in">in</span><h1>LinkedIn Games</h1></header>
+  <p class="sub" id="sub"></p>
+
+  <nav>
+    <a href="leaderboard.html">Daily</a>
+    <a href="stats.html">Cumulative ranking</a>
+    <a href="charts.html" class="active">Charts</a>
+  </nav>
+
+  <div class="card controls">
+    <div class="row">
+      <span class="lbl">Compare</span>
+      <div class="toggle" id="modeToggle">
+        <button data-mode="both" class="active">Both</button>
+        <button data-mode="time">Over time</button>
+        <button data-mode="players">Players</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lbl">Players</span>
+      <span id="playerChips"></span>
+    </div>
+    <div class="row">
+      <span class="lbl">Window</span>
+      <div class="toggle" id="rangeToggle">
+        <button data-days="7">7d</button>
+        <button data-days="30">30d</button>
+        <button data-days="100">100d</button>
+        <button data-days="0" class="active">All</button>
+      </div>
+      <label style="font-size:13px;color:var(--muted)">or last <input id="customDays" type="number" min="1" placeholder="N"> days</label>
+    </div>
+    <div class="row">
+      <span class="lbl">Game</span>
+      <select id="gameSel"></select>
+      <span class="lbl" style="margin-left:12px">Smoothing</span>
+      <span class="infowrap">
+        <button type="button" class="info" id="smoothInfo" aria-label="What is smoothing?">ⓘ</button>
+        <span class="tip" role="tooltip">
+          <b>Rolling average</b> — smooths noisy day-to-day results so the trend is readable.<br><br>
+          • <b>Raw</b>: every play-day plotted exactly as recorded.<br>
+          • <b>3-day / 7-day</b>: each point becomes the average of it and the previous 2 / 6 days <em>that player played</em> — a moving window over play-days, not calendar days.<br><br>
+          Applies to the daily-value line charts: <b>Time trend</b> and <b>% off best over time</b>.<br>
+          Not applied to <b>Elo</b> or the <b>Gold medal race</b> — those are already cumulative.
+        </span>
+      </span>
+      <div class="toggle" id="smoothToggle">
+        <button data-n="1" class="active">Raw</button>
+        <button data-n="3">3-day</button>
+        <button data-n="7">7-day</button>
+      </div>
+      <span class="lbl" style="margin-left:12px">View</span>
+      <div class="toggle" id="viewToggle">
+        <button data-v="chart" class="active">Chart</button>
+        <button data-v="table">Table</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="card" data-group="time" id="card-elo">
+    <h2>📈 Elo trajectory</h2>
+    <p class="hint">Skill rating over the window (starts at 1500). Each pair that played the same game is one match; faster wins. Watch for lead changes.</p>
+    <div class="body"></div>
+  </div>
+
+  <div class="card" data-group="time" id="card-timeTrend">
+    <h2>⏱ Time trend — <span class="gname"></span></h2>
+    <p class="hint">Rolling-average finish time for the selected game. Lower is better — the trend shows who's actually getting faster.</p>
+    <div class="body"></div>
+  </div>
+
+  <div class="card" data-group="time" id="card-pctTrend">
+    <h2>📊 % off best over time — <span class="gname"></span></h2>
+    <p class="hint">Rolling-average % slower than the day's best of the four. Normalized, so it's comparable across games (choose "All games").</p>
+    <div class="body"></div>
+  </div>
+
+  <div class="card" data-group="time" id="card-medalRace">
+    <h2>🥇 Gold medal race</h2>
+    <p class="hint">Cumulative golds (fastest of the four each game) over the window. The slope is current form; crossings are lead changes.</p>
+    <div class="body"></div>
+  </div>
+
+  <div class="card" data-group="players" id="card-profile">
+    <h2>🎯 Per-game profile</h2>
+    <p class="hint">Average % off best per game (lower = better). Each player's strengths and weaknesses at a glance.
+      <span style="white-space:nowrap">View: <a href="#" id="profileShape" style="color:var(--accent)">radar</a></span></p>
+    <div class="body"></div>
+  </div>
+
+  <div class="card" data-group="players" id="card-box">
+    <h2>📦 Time distribution — <span class="gname"></span></h2>
+    <p class="hint">Median line, box = middle 50%, whiskers = range. A tight box means consistent; a low box means fast.</p>
+    <div class="body"></div>
+  </div>
+
+  <div class="card" data-group="players" id="card-h2h">
+    <h2>⚔️ Head-to-head</h2>
+    <p class="hint">Row player's win-rate vs. column player across games both played (blue = row wins more, red = column wins more).</p>
+    <div class="body"></div>
+  </div>
+
+  <footer>Generated from data/results.json · re-run <code>node get_games.js html</code> to refresh</footer>
+</div>
+
+<script id="data" type="application/json">{"players":[{"initial":"J","name":"J"},{"initial":"S","name":"S"},{"initial":"P","name":"P"}],"pctPlayers":[{"initial":"J","name":"J"},{"initial":"S","name":"S"},{"initial":"P","name":"P"},{"initial":"B","name":"B"}],"dates":["2026-05-08","2026-05-11","2026-05-12","2026-05-14","2026-05-15","2026-05-16","2026-05-18","2026-05-19","2026-05-20","2026-05-21","2026-05-23","2026-05-24","2026-05-27","2026-05-30","2026-05-31","2026-06-01","2026-06-03","2026-06-04","2026-06-06","2026-06-09","2026-06-11","2026-06-12","2026-06-13","2026-06-14","2026-06-15","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-20","2026-06-21","2026-06-22","2026-06-23","2026-06-25","2026-07-06","2026-07-08","2026-07-09","2026-07-10","2026-07-11","2026-07-12","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-08","2026-08-09","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-15","2026-08-16","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21"],"perDay":{"2026-05-08":{"games":{"Zip":{"J":60,"P":18,"B":21},"Mini Sudoku":{"J":50,"P":62,"B":81},"Queens":{"J":44,"S":98,"P":32,"B":80},"Tango":{"J":44,"P":54,"B":64},"Crossclimb":{"J":50,"P":93,"B":98},"Pinpoint":{"J":5,"S":5,"P":3,"B":5},"Patches":{"J":14,"S":15,"P":68,"B":49}}},"2026-05-11":{"games":{"Zip":{"J":5,"S":6,"P":6},"Mini Sudoku":{"J":41,"S":54,"P":36},"Queens":{"J":5,"S":7,"P":4},"Tango":{"J":20,"S":33,"P":21},"Crossclimb":{"J":41,"S":52,"P":49},"Pinpoint":{"J":1,"S":2,"P":1},"Patches":{"J":7,"S":7,"P":8}}},"2026-05-12":{"games":{"Zip":{"J":5,"S":13,"P":6},"Mini Sudoku":{"J":39,"S":52,"P":37},"Queens":{"J":17,"S":25,"P":10},"Tango":{"J":22,"S":39,"P":22},"Crossclimb":{"J":54,"S":53,"P":46},"Pinpoint":{"J":3,"S":4,"P":2},"Patches":{"J":10,"S":11,"P":9}}},"2026-05-14":{"games":{"Zip":{"J":6,"S":14,"P":38},"Mini Sudoku":{"J":57,"S":69,"P":54},"Queens":{"J":8,"S":10,"P":6},"Tango":{"J":32,"S":43,"P":37},"Crossclimb":{"J":67,"S":52,"P":30},"Pinpoint":{"J":1,"S":1,"P":1},"Patches":{"J":12,"S":37,"P":29}}},"2026-05-15":{"games":{"Zip":{"J":34,"S":18,"P":24,"B":26},"Mini Sudoku":{"J":60,"S":85,"P":59},"Queens":{"J":23,"S":43,"P":39,"B":53},"Tango":{"J":23,"S":32,"P":48,"B":44},"Crossclimb":{"J":34,"S":54,"P":35},"Pinpoint":{"J":3,"S":5,"P":4,"B":5},"Patches":{"J":20,"S":43,"P":17,"B":26}}},"2026-05-16":{"games":{"Zip":{"J":12,"S":18,"P":11,"B":18},"Mini Sudoku":{"J":109,"S":113,"P":38,"B":88},"Queens":{"J":120,"S":34,"P":43,"B":74},"Tango":{"J":51,"S":46,"P":42,"B":54},"Crossclimb":{"J":44,"S":57,"P":44,"B":60},"Pinpoint":{"J":4,"S":4,"P":4,"B":4},"Patches":{"J":51,"S":31,"P":24,"B":29}}},"2026-05-18":{"games":{"Zip":{"J":34,"S":44,"P":47,"B":19},"Mini Sudoku":{"J":65,"S":157,"P":86,"B":123},"Queens":{"J":28,"S":189,"P":116,"B":174},"Tango":{"J":36,"S":75,"P":60,"B":67},"Crossclimb":{"J":44,"S":74,"P":146,"B":78},"Pinpoint":{"J":2,"S":5,"P":1,"B":4},"Patches":{"J":19,"S":26,"P":32,"B":47}}},"2026-05-19":{"games":{"Zip":{"J":4,"S":7,"P":5,"B":6},"Mini Sudoku":{"J":25,"S":42,"P":29,"B":31},"Queens":{"J":15,"S":22,"P":5,"B":14},"Tango":{"J":24,"S":28,"P":26,"B":24},"Crossclimb":{"J":37,"S":42,"P":33,"B":30},"Pinpoint":{"J":1,"S":1,"P":2,"B":1},"Patches":{"J":5,"S":11,"P":8,"B":10}}},"2026-05-20":{"games":{"Zip":{"J":6,"S":13,"P":15,"B":8},"Mini Sudoku":{"J":48,"S":50,"P":51,"B":41},"Queens":{"J":6,"S":14,"P":13,"B":10},"Tango":{"J":16,"S":23,"P":20,"B":18},"Crossclimb":{"J":61,"S":53,"P":103,"B":98},"Pinpoint":{"J":3,"S":3,"P":5,"B":3},"Patches":{"J":10,"S":10,"P":7,"B":18}}},"2026-05-21":{"games":{"Zip":{"J":9,"S":9,"P":12,"B":9},"Mini Sudoku":{"J":71,"S":90,"P":57,"B":82},"Queens":{"J":38,"S":66,"P":38,"B":39},"Tango":{"J":26,"S":30,"P":33,"B":25},"Crossclimb":{"J":34,"S":36,"P":40,"B":60},"Pinpoint":{"J":5,"S":5,"P":3,"B":5},"Patches":{"J":11,"S":13,"P":23,"B":31}}},"2026-05-23":{"games":{"Zip":{"J":56,"S":22,"P":8,"B":32},"Mini Sudoku":{"J":60,"S":100,"P":57,"B":80},"Queens":{"J":47,"S":48,"P":59,"B":51},"Tango":{"J":28,"S":75,"P":31,"B":83},"Crossclimb":{"J":42,"S":36,"P":37,"B":56},"Pinpoint":{"J":1,"S":1,"P":1,"B":1},"Patches":{"J":30,"S":23,"P":74,"B":26}}},"2026-05-24":{"games":{"Zip":{"J":22,"S":31,"P":79},"Mini Sudoku":{"J":85,"S":99,"P":107},"Queens":{"J":80,"S":154,"P":112},"Tango":{"J":46,"S":44,"P":47},"Crossclimb":{"J":101,"S":56,"P":79},"Pinpoint":{"J":5,"S":2,"P":2},"Patches":{"J":43,"S":55,"P":34}}},"2026-05-27":{"games":{"Zip":{"J":9,"S":12,"P":10},"Mini Sudoku":{"J":63,"S":61,"P":48},"Queens":{"J":18,"S":25,"P":14},"Tango":{"J":18,"S":30,"P":49},"Crossclimb":{"J":68,"S":49,"P":46},"Patches":{"J":10,"S":27,"P":15}}},"2026-05-30":{"games":{"Zip":{"J":10,"S":8,"P":9,"B":11},"Mini Sudoku":{"J":79,"S":65,"P":92,"B":77},"Queens":{"J":33,"S":118,"P":33,"B":55},"Tango":{"J":27,"S":42,"P":46,"B":67},"Crossclimb":{"J":90,"S":83,"P":65,"B":94},"Patches":{"J":20,"S":36,"P":103,"B":116}}},"2026-05-31":{"games":{"Zip":{"J":22,"S":48,"P":44,"B":39},"Mini Sudoku":{"J":51,"S":138,"P":139,"B":113},"Queens":{"J":140,"S":99,"P":34,"B":88},"Tango":{"J":45,"S":44,"P":64,"B":53},"Crossclimb":{"J":67,"S":62,"P":58,"B":133},"Pinpoint":{"J":3,"S":5,"P":5,"B":5},"Patches":{"J":47,"S":34,"P":73,"B":61}}},"2026-06-01":{"games":{"Zip":{"J":29,"S":43,"P":64},"Mini Sudoku":{"J":75,"S":132,"P":69},"Queens":{"J":35,"S":89,"P":52},"Tango":{"J":39,"S":47,"P":57},"Crossclimb":{"J":63,"S":65,"P":45},"Pinpoint":{"J":3,"S":5,"P":3},"Patches":{"J":61,"S":34,"P":48}}},"2026-06-03":{"games":{"Zip":{"J":9,"S":10,"P":11,"B":13},"Mini Sudoku":{"J":61,"S":68,"P":46,"B":71},"Queens":{"J":12,"S":16,"P":9,"B":16},"Tango":{"J":97,"S":54,"P":45,"B":36},"Crossclimb":{"J":69,"S":60,"P":44,"B":64},"Pinpoint":{"J":2,"S":2,"P":1,"B":3},"Patches":{"J":11,"S":8,"P":10,"B":18}}},"2026-06-04":{"games":{"Zip":{"J":7,"S":12,"P":9,"B":12},"Mini Sudoku":{"J":56,"S":53,"P":57,"B":69},"Queens":{"J":16,"S":27,"P":14,"B":54},"Tango":{"J":24,"S":40,"P":27,"B":45},"Crossclimb":{"J":39,"S":43,"P":71,"B":57},"Pinpoint":{"J":2,"S":4,"P":2,"B":2},"Patches":{"J":29,"S":22,"P":16,"B":24}}},"2026-06-06":{"games":{"Zip":{"J":16,"S":16,"P":21},"Mini Sudoku":{"J":52,"S":83,"P":49},"Queens":{"J":47,"S":97,"P":43},"Tango":{"J":30,"S":35,"P":25},"Crossclimb":{"J":46,"S":89,"P":39},"Pinpoint":{"J":5,"S":5,"P":5},"Patches":{"J":33,"S":25,"P":64}}},"2026-06-09":{"games":{"Wend":{"S":89,"P":68},"Zip":{"J":7,"S":7,"P":9,"B":16},"Mini Sudoku":{"J":54,"S":62,"P":44,"B":28},"Queens":{"J":11,"S":20,"P":6,"B":25},"Tango":{"J":17,"S":26,"P":20,"B":34},"Crossclimb":{"J":26,"S":48,"P":43,"B":43},"Pinpoint":{"J":2,"S":2,"P":2,"B":2},"Patches":{"J":11,"S":16,"P":17,"B":13}}},"2026-06-11":{"games":{"Wend":{"J":8,"S":106,"P":6},"Zip":{"J":10,"S":13,"P":11,"B":10},"Mini Sudoku":{"J":61,"S":91,"P":95,"B":98},"Queens":{"J":14,"S":26,"P":16,"B":33},"Tango":{"J":24,"S":53,"P":28,"B":26},"Crossclimb":{"J":40,"S":40,"P":46,"B":73},"Pinpoint":{"J":5,"S":5,"P":5,"B":4},"Patches":{"J":32,"S":31,"P":19,"B":25}}},"2026-06-12":{"games":{"Wend":{"J":126,"S":72,"P":132},"Zip":{"J":10,"S":15,"P":10},"Mini Sudoku":{"J":69,"S":111,"P":109},"Queens":{"J":78,"S":70,"P":11},"Tango":{"J":31,"S":42,"P":32},"Crossclimb":{"J":70,"S":66,"P":34},"Pinpoint":{"J":5,"S":5,"P":4},"Patches":{"J":24,"S":28,"P":61}}},"2026-06-13":{"games":{"Wend":{"J":48,"S":47,"P":51,"B":204},"Zip":{"J":21,"S":50,"P":21,"B":21},"Mini Sudoku":{"J":62,"S":151,"P":83,"B":152},"Queens":{"J":228,"S":78,"P":11,"B":99},"Tango":{"J":33,"S":38,"P":43,"B":39},"Crossclimb":{"J":52,"S":70,"P":83,"B":53},"Patches":{"J":15,"S":18,"P":13,"B":67}}},"2026-06-14":{"games":{"Wend":{"J":58,"S":107,"P":112,"B":63},"Zip":{"J":164,"S":33,"P":49,"B":64},"Mini Sudoku":{"J":100,"S":187,"P":120,"B":136},"Queens":{"J":63,"S":76,"P":26,"B":72},"Tango":{"J":44,"S":70,"P":43,"B":82},"Crossclimb":{"J":30,"S":63,"P":49,"B":48},"Patches":{"J":74,"S":51,"P":37,"B":32}}},"2026-06-15":{"games":{"Wend":{"J":68,"S":69,"P":99},"Zip":{"J":5,"S":4,"P":4},"Mini Sudoku":{"J":25,"S":33,"P":30},"Queens":{"J":14,"S":6,"P":5},"Tango":{"J":35,"S":31,"P":28},"Crossclimb":{"J":59,"S":33,"P":38},"Pinpoint":{"J":1,"S":2,"P":3},"Patches":{"J":13,"S":10,"P":19}}},"2026-06-16":{"games":{"Wend":{"J":62,"S":125,"P":97,"B":116},"Zip":{"J":4,"S":13,"P":7,"B":6},"Mini Sudoku":{"J":38,"S":60,"P":56,"B":44},"Queens":{"J":14,"S":13,"P":14,"B":20},"Tango":{"J":19,"S":32,"P":28,"B":32},"Crossclimb":{"J":29,"S":42,"P":49,"B":50},"Pinpoint":{"J":2,"S":3,"P":3,"B":4},"Patches":{"J":9,"S":8,"P":11,"B":11}}},"2026-06-17":{"games":{"Wend":{"J":31,"S":33,"P":23,"B":21},"Zip":{"J":4,"S":5,"P":9,"B":6},"Mini Sudoku":{"J":46,"S":67,"P":37,"B":48},"Queens":{"J":144,"S":37,"P":22,"B":47},"Tango":{"J":22,"S":32,"P":23,"B":22},"Crossclimb":{"J":28,"S":35,"P":35,"B":38},"Pinpoint":{"J":5,"S":5,"P":2,"B":5},"Patches":{"J":19,"S":8,"P":7,"B":13}}},"2026-06-18":{"games":{"Wend":{"J":47,"S":80,"P":72,"B":47},"Zip":{"J":8,"S":7,"P":6,"B":20},"Mini Sudoku":{"J":61,"S":130,"P":108,"B":51},"Queens":{"J":31,"S":68,"P":23,"B":74},"Tango":{"J":25,"S":30,"P":24,"B":29},"Crossclimb":{"J":84,"S":63,"P":48,"B":57},"Pinpoint":{"J":3,"S":2,"P":5,"B":3},"Patches":{"J":23,"S":32,"P":60,"B":95}}},"2026-06-19":{"games":{"Wend":{"J":30,"S":46,"P":54,"B":22},"Zip":{"J":20,"S":9,"P":13,"B":14},"Mini Sudoku":{"J":56,"S":91,"P":59,"B":109},"Queens":{"J":30,"S":98,"P":100,"B":90},"Tango":{"J":24,"S":50,"P":46,"B":57},"Crossclimb":{"J":27,"S":33,"P":42,"B":29},"Pinpoint":{"J":5,"S":5,"P":4,"B":4},"Patches":{"J":31,"S":40,"P":26,"B":35}}},"2026-06-20":{"games":{"Wend":{"J":50,"S":67,"P":78,"B":184},"Zip":{"J":25,"S":39,"P":31,"B":11},"Mini Sudoku":{"J":85,"S":81,"P":131,"B":47},"Queens":{"J":37,"S":70,"P":64,"B":87},"Tango":{"J":30,"S":75,"P":62,"B":25},"Crossclimb":{"J":41,"S":38,"P":85,"B":55},"Pinpoint":{"J":1,"S":3,"P":4,"B":1},"Patches":{"J":41,"S":18,"P":27,"B":76}}},"2026-06-21":{"games":{"Wend":{"J":281,"S":157,"P":121,"B":234},"Zip":{"J":25,"S":25,"P":13,"B":51},"Mini Sudoku":{"J":65,"S":145,"P":129,"B":99},"Queens":{"J":124,"S":93,"P":44},"Tango":{"J":43,"S":41,"P":53,"B":87},"Crossclimb":{"J":46,"S":103,"P":78},"Pinpoint":{"J":5,"S":3,"P":3},"Patches":{"J":36,"S":31,"P":56,"B":165}}},"2026-06-22":{"games":{"Wend":{"J":45,"S":78,"P":44,"B":48},"Zip":{"J":6,"S":4,"P":15,"B":8},"Mini Sudoku":{"J":40,"S":52,"P":73,"B":34},"Queens":{"J":11,"S":7,"P":7,"B":11},"Tango":{"J":27,"S":19,"P":19,"B":23},"Crossclimb":{"J":83,"S":49,"P":56,"B":45},"Pinpoint":{"J":3,"S":5,"P":2,"B":5},"Patches":{"J":6,"S":13,"P":8,"B":9}}},"2026-06-23":{"games":{"Wend":{"J":29,"S":39,"P":41},"Zip":{"J":8,"S":8,"P":7},"Mini Sudoku":{"J":50,"S":51,"P":36},"Queens":{"J":7,"S":17,"P":12},"Tango":{"J":23,"S":32,"P":24},"Crossclimb":{"J":36,"S":46,"P":47},"Patches":{"J":12,"S":13,"P":12}}},"2026-06-25":{"games":{"Wend":{"J":33,"S":63,"P":37,"B":46},"Zip":{"J":11,"S":12,"P":41,"B":23},"Mini Sudoku":{"J":59,"S":124,"P":51,"B":133},"Queens":{"J":15,"S":14,"P":11,"B":26},"Tango":{"J":26,"S":45,"P":52,"B":31},"Crossclimb":{"J":41,"S":65,"P":45,"B":43},"Pinpoint":{"J":1,"S":5,"P":2,"B":1},"Patches":{"J":16,"S":15,"P":21,"B":25}}},"2026-07-06":{"games":{"Wend":{"J":28,"S":18,"P":10},"Zip":{"J":10,"S":10,"P":7},"Mini Sudoku":{"J":33,"S":43,"P":35},"Queens":{"J":9,"S":8,"P":7},"Tango":{"J":21,"S":21,"P":23},"Crossclimb":{"J":59,"S":43,"P":71},"Pinpoint":{"J":2,"S":5,"P":1},"Patches":{"J":6,"S":11,"P":9}}},"2026-07-08":{"games":{"Wend":{"J":13,"S":16,"P":17},"Zip":{"J":4,"S":5,"P":5},"Mini Sudoku":{"J":40,"S":57,"P":52},"Queens":{"J":7,"S":18,"P":6},"Tango":{"J":33,"S":23,"P":20},"Crossclimb":{"J":34,"S":54,"P":39},"Patches":{"J":30,"S":27,"P":32}}},"2026-07-09":{"games":{"Wend":{"J":54,"S":44,"P":33,"B":19},"Zip":{"J":6,"S":7,"P":8,"B":7},"Mini Sudoku":{"J":40,"S":82,"P":42,"B":40},"Queens":{"J":47,"S":45,"P":19,"B":41},"Tango":{"J":38,"S":35,"P":38,"B":33},"Crossclimb":{"S":33,"P":33,"B":25},"Patches":{"J":26,"S":12,"P":17,"B":29}}},"2026-07-10":{"games":{"Wend":{"J":54,"S":44,"P":33,"B":19},"Zip":{"J":6,"S":7,"P":8,"B":7},"Mini Sudoku":{"J":40,"S":82,"P":42,"B":40},"Queens":{"J":47,"S":45,"P":19,"B":41},"Tango":{"J":38,"S":35,"P":38,"B":33},"Crossclimb":{"J":33,"S":33,"P":33,"B":25},"Pinpoint":{"J":2,"S":1,"P":2,"B":1},"Patches":{"J":26,"S":12,"P":17,"B":29}}},"2026-07-11":{"games":{"Wend":{"J":53,"S":62,"P":49,"B":54},"Zip":{"J":27,"S":46,"P":26,"B":18},"Mini Sudoku":{"J":69,"S":79,"P":54,"B":75},"Queens":{"J":60,"S":39,"P":50,"B":48},"Tango":{"J":29,"S":24,"P":30,"B":33},"Crossclimb":{"J":129,"S":43,"P":93,"B":99},"Pinpoint":{"J":2,"S":3,"P":5,"B":2},"Patches":{"J":19,"S":18,"P":18,"B":28}}},"2026-07-12":{"games":{"Wend":{"J":105,"S":133,"P":122,"B":155},"Zip":{"J":22,"S":31,"P":18,"B":15},"Mini Sudoku":{"J":99,"S":87,"P":107},"Queens":{"J":60,"S":99,"P":97},"Tango":{"J":45,"S":77,"P":51},"Crossclimb":{"J":43,"S":56,"P":46},"Pinpoint":{"J":5,"S":1,"P":3},"Patches":{"J":22,"S":32,"P":28,"B":29}}},"2026-07-13":{"games":{"Wend":{"J":12,"S":9,"P":16,"B":10},"Zip":{"J":9,"S":6,"P":5,"B":7},"Mini Sudoku":{"J":39,"S":49,"P":56,"B":32},"Queens":{"J":8,"S":7,"P":6,"B":8},"Tango":{"J":20,"S":20,"P":20,"B":23},"Crossclimb":{"J":60,"S":38,"P":53,"B":46},"Pinpoint":{"J":1,"S":2,"P":1,"B":2},"Patches":{"J":13,"S":11,"P":17,"B":17}}},"2026-07-14":{"games":{"Wend":{"J":39,"S":29,"P":16},"Zip":{"J":6,"S":7,"P":8},"Mini Sudoku":{"J":34,"S":60,"P":32},"Queens":{"J":8,"S":12,"P":7},"Tango":{"J":23,"S":23,"P":31},"Crossclimb":{"J":33,"S":38,"P":44},"Pinpoint":{"J":2,"S":2,"P":2},"Patches":{"J":15,"S":19,"P":10}}},"2026-07-15":{"games":{"Wend":{"J":21,"S":16,"P":19,"B":25},"Zip":{"J":10,"S":10,"P":10,"B":11},"Mini Sudoku":{"J":55,"S":86,"P":101,"B":42},"Queens":{"J":31,"S":24,"P":16,"B":15},"Tango":{"J":31,"S":29,"P":24,"B":21},"Crossclimb":{"J":38,"S":37,"P":52},"Pinpoint":{"J":2,"S":2,"P":3,"B":2},"Patches":{"J":42,"S":14,"P":10,"B":16}}},"2026-07-16":{"games":{"Wend":{"J":161,"S":62,"P":63,"B":144},"Zip":{"J":6,"S":9,"P":7,"B":8},"Mini Sudoku":{"J":72,"S":73,"P":50,"B":64},"Queens":{"J":19,"S":20,"P":13,"B":26},"Tango":{"J":25,"S":29,"P":22,"B":28},"Crossclimb":{"J":27,"S":32,"P":43,"B":31},"Pinpoint":{"J":3,"S":5,"P":5,"B":5},"Patches":{"J":18,"S":24,"P":9,"B":22}}},"2026-07-17":{"games":{"Wend":{"J":93,"S":75,"P":35,"B":119},"Zip":{"J":15,"S":13,"P":11,"B":11},"Mini Sudoku":{"J":56,"S":86,"P":45,"B":65},"Queens":{"J":105,"S":85,"P":42},"Tango":{"J":25,"S":33,"P":29},"Crossclimb":{"J":57,"S":37,"P":49},"Pinpoint":{"J":1,"S":5,"P":5},"Patches":{"J":21,"S":25,"P":21,"B":43}}},"2026-07-20":{"games":{"Wend":{"J":23,"S":13,"P":18,"B":20},"Zip":{"J":5,"S":9,"P":8,"B":7},"Mini Sudoku":{"J":32,"S":75,"P":59,"B":43},"Queens":{"J":16,"S":5,"P":8,"B":10},"Tango":{"J":20,"S":23,"P":33,"B":23},"Crossclimb":{"J":23,"S":33,"P":38,"B":30},"Pinpoint":{"J":2,"S":1,"P":2,"B":1},"Patches":{"J":7,"S":10,"P":13,"B":12}}},"2026-07-21":{"games":{"Wend":{"J":22,"S":42,"P":22,"B":20},"Zip":{"J":6,"S":5,"P":6,"B":7},"Mini Sudoku":{"J":52,"S":86,"P":52,"B":91},"Queens":{"J":13,"S":13,"P":7,"B":14},"Tango":{"J":22,"S":31,"P":25,"B":23},"Crossclimb":{"J":40,"S":70,"P":78,"B":58},"Pinpoint":{"J":4,"S":4,"P":3,"B":5},"Patches":{"J":11,"S":10,"P":9,"B":15}}},"2026-07-22":{"games":{"Wend":{"J":35,"S":41,"P":43,"B":33},"Zip":{"J":8,"S":11,"P":8,"B":10},"Mini Sudoku":{"J":51,"S":63,"P":65,"B":53},"Queens":{"J":9,"S":10,"P":32,"B":25},"Tango":{"J":25,"S":30,"P":34,"B":28},"Crossclimb":{"J":50,"S":37,"P":51,"B":48},"Pinpoint":{"J":1,"S":5,"P":1,"B":1},"Patches":{"J":15,"S":20,"P":13,"B":36}}},"2026-07-23":{"games":{"Wend":{"J":23,"S":56,"P":31},"Zip":{"J":9,"S":10,"P":12},"Mini Sudoku":{"J":40,"S":48,"P":43},"Queens":{"J":27,"S":42,"P":12},"Tango":{"J":29,"S":36,"P":59},"Crossclimb":{"J":67,"S":46,"P":69},"Pinpoint":{"J":4,"S":4,"P":3},"Patches":{"J":43,"S":39,"P":19}}},"2026-07-24":{"games":{"Wend":{"J":125,"S":47,"P":48},"Zip":{"J":7,"S":9,"P":7},"Mini Sudoku":{"J":60,"S":94,"P":50},"Queens":{"J":39,"S":106,"P":34},"Tango":{"J":46,"S":74,"P":56},"Crossclimb":{"J":73,"S":47,"P":43},"Pinpoint":{"J":3,"S":5,"P":5},"Patches":{"J":51,"S":15,"P":91}}},"2026-07-25":{"games":{"Wend":{"J":118,"S":56,"P":56,"B":66},"Zip":{"J":9,"S":21,"P":18,"B":12},"Mini Sudoku":{"J":59,"S":154,"P":62,"B":98},"Queens":{"J":37,"S":46,"P":18},"Tango":{"J":31,"S":44,"P":42,"B":94},"Crossclimb":{"J":43,"S":47,"P":36},"Pinpoint":{"J":4,"S":4,"P":4},"Patches":{"J":18,"S":23,"P":13,"B":23}}},"2026-07-26":{"games":{"Wend":{"J":81,"S":106,"P":61},"Zip":{"J":17,"S":18,"P":19},"Mini Sudoku":{"J":56,"S":199,"P":60},"Queens":{"J":47,"S":59,"P":39},"Tango":{"J":90,"S":72,"P":109},"Crossclimb":{"J":39,"S":47,"P":47},"Pinpoint":{"J":5,"S":5,"P":5},"Patches":{"J":56,"S":82,"P":40}}},"2026-07-27":{"games":{"Wend":{"J":17,"S":36,"P":22,"B":22},"Zip":{"J":5,"S":5,"P":5,"B":6},"Mini Sudoku":{"J":33,"S":50,"P":43,"B":28},"Queens":{"J":6,"S":8,"P":6,"B":8},"Tango":{"J":16,"S":23,"P":16,"B":17},"Crossclimb":{"J":38,"S":43,"P":42,"B":30},"Pinpoint":{"J":1,"S":4,"P":2,"B":2},"Patches":{"J":9,"S":55,"P":10,"B":9}}},"2026-07-28":{"games":{"Wend":{"J":37,"S":25,"P":11},"Zip":{"J":9,"S":18,"P":5},"Mini Sudoku":{"J":50,"S":71,"P":70},"Queens":{"J":11,"S":15,"P":7},"Tango":{"J":26,"S":47,"P":26},"Crossclimb":{"J":43,"S":32,"P":33},"Pinpoint":{"J":2,"S":4,"P":2},"Patches":{"J":9,"S":8,"P":35}}},"2026-07-29":{"games":{"Wend":{"J":13,"S":55,"P":21},"Zip":{"J":3,"S":5,"P":4},"Mini Sudoku":{"J":54,"S":59,"P":61},"Queens":{"J":33,"S":19,"P":11},"Tango":{"J":68,"S":41,"P":27},"Crossclimb":{"J":57,"S":41,"P":35},"Pinpoint":{"J":2,"S":3,"P":2},"Patches":{"J":9,"S":13,"P":11}}},"2026-07-30":{"games":{"Wend":{"J":59,"S":20,"P":32},"Zip":{"J":7,"S":9,"P":13},"Mini Sudoku":{"J":35,"S":64,"P":62},"Queens":{"J":79,"S":40,"P":21},"Tango":{"J":31,"S":32,"P":59},"Crossclimb":{"J":31,"S":44,"P":40},"Pinpoint":{"J":3,"S":3,"P":1},"Patches":{"J":25,"S":30,"P":30}}},"2026-07-31":{"games":{"Wend":{"J":80,"S":44,"P":76},"Zip":{"J":16,"S":22,"P":8},"Mini Sudoku":{"J":65,"S":122,"P":117},"Queens":{"J":46,"S":39,"P":25},"Tango":{"J":44,"S":27,"P":43},"Crossclimb":{"J":67,"S":95,"P":61},"Pinpoint":{"S":5,"P":3},"Patches":{"J":17,"S":11,"P":10}}},"2026-08-01":{"games":{"Wend":{"J":26,"S":38,"P":83},"Zip":{"J":18,"S":43,"P":48},"Mini Sudoku":{"J":91,"P":65},"Queens":{"J":26,"P":45},"Tango":{"J":43,"P":54},"Crossclimb":{"J":92,"P":84},"Patches":{"J":23,"S":29,"P":36}}},"2026-08-02":{"games":{"Wend":{"J":85,"S":71,"P":90},"Zip":{"J":24,"S":13,"P":85},"Mini Sudoku":{"J":61,"S":158,"P":121},"Queens":{"J":44,"S":70,"P":47},"Tango":{"J":30,"S":46,"P":40},"Crossclimb":{"J":49,"S":79,"P":81},"Pinpoint":{"J":2,"S":5,"P":5},"Patches":{"J":62,"S":33,"P":27}}},"2026-08-03":{"games":{"Wend":{"J":10,"S":18,"P":10},"Zip":{"J":6,"S":5,"P":6},"Mini Sudoku":{"J":42,"S":53,"P":38},"Queens":{"J":7,"S":14,"P":5},"Tango":{"J":18,"S":33,"P":23},"Crossclimb":{"J":48,"S":49,"P":48},"Pinpoint":{"J":2,"S":3,"P":2},"Patches":{"J":7,"S":13,"P":26}}},"2026-08-04":{"games":{"Wend":{"J":31,"S":13,"P":20},"Zip":{"J":9,"S":10,"P":17},"Mini Sudoku":{"J":38,"S":70,"P":41},"Queens":{"J":9,"S":19,"P":11},"Tango":{"J":19,"S":22,"P":36},"Crossclimb":{"J":67,"S":65,"P":66},"Pinpoint":{"J":2,"S":2,"P":3},"Patches":{"J":6,"S":11,"P":11}}},"2026-08-05":{"games":{"Wend":{"J":20,"S":40,"P":13},"Zip":{"J":5,"S":9,"P":6},"Mini Sudoku":{"J":38,"S":77,"P":57},"Queens":{"J":24,"S":49,"P":36},"Tango":{"J":20,"S":39,"P":25},"Crossclimb":{"J":43,"S":105,"P":41},"Pinpoint":{"J":2,"S":3,"P":3},"Patches":{"J":6,"S":9,"P":9}}},"2026-08-06":{"games":{"Wend":{"J":138,"S":62,"P":35},"Zip":{"J":7,"S":14,"P":28},"Mini Sudoku":{"J":74,"S":76,"P":74},"Queens":{"J":19,"S":13,"P":6},"Tango":{"J":39,"S":30,"P":21},"Crossclimb":{"J":54,"S":51,"P":77},"Pinpoint":{"P":5},"Patches":{"J":21,"S":35,"P":21}}},"2026-08-07":{"games":{"Wend":{"J":24,"S":31,"P":13},"Zip":{"J":8,"S":11,"P":8},"Mini Sudoku":{"J":59,"S":111,"P":57},"Queens":{"J":42,"S":60,"P":46},"Tango":{"J":37,"S":35,"P":66},"Crossclimb":{"J":39,"S":60,"P":44},"Pinpoint":{"J":2,"S":2,"P":3},"Patches":{"J":16,"S":24,"P":13}}},"2026-08-08":{"games":{"Wend":{"J":41,"S":58,"P":24},"Zip":{"J":12,"S":17,"P":9},"Mini Sudoku":{"J":64,"S":88,"P":102},"Queens":{"J":34,"S":50,"P":32},"Tango":{"J":36,"S":54,"P":72},"Crossclimb":{"J":35,"S":44,"P":47},"Pinpoint":{"J":3,"S":5,"P":2},"Patches":{"J":88,"S":29,"P":21}}},"2026-08-09":{"games":{"Wend":{"J":136,"S":90,"P":106},"Zip":{"J":14,"S":18,"P":25},"Mini Sudoku":{"J":116,"S":109,"P":79},"Queens":{"J":76,"S":104,"P":73},"Tango":{"J":67,"S":53,"P":65},"Crossclimb":{"J":72,"P":54},"Pinpoint":{"P":5},"Patches":{"J":32,"S":55,"P":61}}},"2026-08-10":{"games":{"Wend":{"J":18,"S":43,"P":47},"Zip":{"J":8,"S":14,"P":8},"Mini Sudoku":{"J":35,"S":52,"P":38},"Queens":{"J":11,"S":8,"P":9},"Tango":{"J":19,"S":30,"P":19},"Crossclimb":{"J":39,"S":46,"P":44},"Pinpoint":{"J":4,"S":4,"P":3},"Patches":{"J":8,"S":9,"P":10}}},"2026-08-11":{"games":{"Wend":{"J":57,"S":13,"P":20},"Zip":{"J":6,"S":6,"P":16},"Mini Sudoku":{"J":45,"S":66,"P":67},"Queens":{"J":9,"S":14,"P":9},"Tango":{"J":18,"S":29,"P":22},"Crossclimb":{"J":36,"S":63,"P":45},"Pinpoint":{"J":2,"P":2},"Patches":{"J":20,"S":33,"P":20}}},"2026-08-12":{"games":{"Wend":{"J":18,"S":30,"P":11},"Zip":{"J":15,"S":24,"P":18},"Mini Sudoku":{"J":59,"S":65,"P":58},"Queens":{"J":17,"S":13,"P":10},"Tango":{"J":22,"S":29,"P":29},"Crossclimb":{"J":52,"S":55,"P":39},"Pinpoint":{"J":2,"S":3,"P":2},"Patches":{"J":11,"S":23,"P":15}}},"2026-08-13":{"games":{"Wend":{"J":54,"S":84,"P":27},"Zip":{"J":26,"S":27,"P":28},"Mini Sudoku":{"J":36,"S":52,"P":55},"Queens":{"J":42,"S":47,"P":34},"Tango":{"J":52,"S":47,"P":53},"Crossclimb":{"J":34,"S":37,"P":38},"Pinpoint":{"J":5,"S":3,"P":3},"Patches":{"J":10,"S":10,"P":9}}},"2026-08-14":{"games":{"Wend":{"J":33,"S":39,"P":60},"Zip":{"J":15,"S":24,"P":16},"Mini Sudoku":{"J":56,"S":118,"P":96},"Queens":{"J":58,"S":68,"P":65},"Tango":{"J":29,"S":33,"P":45},"Crossclimb":{"J":44,"S":63,"P":83},"Pinpoint":{"J":1,"S":1,"P":2},"Patches":{"J":13,"S":21,"P":32}}},"2026-08-15":{"games":{"Wend":{"J":46,"S":90,"P":83},"Zip":{"J":8,"S":12,"P":10},"Mini Sudoku":{"J":63,"S":89,"P":83},"Queens":{"J":75,"S":35,"P":27},"Tango":{"J":78,"S":34,"P":28},"Crossclimb":{"J":29,"S":48,"P":46},"Pinpoint":{"J":3,"P":3},"Patches":{"J":15,"S":44,"P":22}}},"2026-08-16":{"games":{"Wend":{"J":62,"S":107,"P":36},"Zip":{"J":41,"S":57,"P":60},"Mini Sudoku":{"J":77,"S":107,"P":60},"Queens":{"J":158,"S":143,"P":84},"Tango":{"J":28,"S":36,"P":32},"Crossclimb":{"J":61,"S":85,"P":53},"Pinpoint":{"S":1,"P":4},"Patches":{"J":25,"S":33,"P":27}}},"2026-08-17":{"games":{"Wend":{"J":16,"S":11,"P":11},"Zip":{"J":5,"S":6,"P":4},"Mini Sudoku":{"J":44,"S":56,"P":29},"Queens":{"J":14,"S":10,"P":6},"Tango":{"J":22,"S":25,"P":21},"Crossclimb":{"J":41,"S":42,"P":40},"Pinpoint":{"J":2,"S":3,"P":2},"Patches":{"J":6,"S":9,"P":6}}},"2026-08-18":{"games":{"Wend":{"J":21,"S":20,"P":16},"Zip":{"J":7,"S":23,"P":11},"Mini Sudoku":{"J":35,"S":47,"P":62},"Queens":{"J":8,"S":8,"P":5},"Tango":{"J":20,"S":29,"P":20},"Crossclimb":{"J":43,"S":36,"P":28},"Pinpoint":{"S":4,"P":2},"Patches":{"J":27,"S":37,"P":47}}},"2026-08-19":{"games":{"Wend":{"J":115,"S":47,"P":57},"Zip":{"J":6,"S":9,"P":7},"Mini Sudoku":{"J":47,"S":69,"P":46},"Queens":{"J":32,"S":52,"P":26},"Tango":{"J":17,"S":19,"P":17},"Crossclimb":{"J":36,"S":57,"P":30},"Pinpoint":{"J":1,"S":3,"P":2},"Patches":{"J":27,"S":13,"P":18}}},"2026-08-20":{"games":{"Wend":{"J":38,"S":16,"P":21},"Zip":{"J":12,"S":16,"P":80},"Mini Sudoku":{"J":56,"S":82,"P":81},"Queens":{"J":26,"S":93,"P":13},"Tango":{"J":24,"S":29,"P":28},"Crossclimb":{"J":34,"S":50,"P":43},"Pinpoint":{"J":3,"S":2,"P":2},"Patches":{"J":17,"S":14,"P":14}}},"2026-08-21":{"games":{"Wend":{"J":88,"S":70,"P":26},"Zip":{"J":9,"S":13,"P":9},"Mini Sudoku":{"J":50,"S":108,"P":67},"Queens":{"J":32,"S":38,"P":24},"Tango":{"J":32,"S":32,"P":26},"Crossclimb":{"J":41,"S":54,"P":55},"Pinpoint":{"J":2,"S":5,"P":3},"Patches":{"J":19,"S":34,"P":57}}}},"gamesMeta":[{"name":"Wend","emoji":"💱","isCount":false},{"name":"Zip","emoji":"🏁","isCount":false},{"name":"Mini Sudoku","emoji":"✏️","isCount":false},{"name":"Queens","emoji":"👑","isCount":false},{"name":"Tango","emoji":"🌓","isCount":false},{"name":"Crossclimb","emoji":"🪜","isCount":false},{"name":"Pinpoint","emoji":"📌","isCount":true},{"name":"Patches","emoji":"🩹","isCount":false}],"eloParams":{"start":1500,"k":24}}</script>
+<script>
+const S = JSON.parse(document.getElementById('data').textContent);
+const ALL = S.pctPlayers;                       // the 4 players (J/S/P/B)
+const KEYS = ALL.map(p => p.initial);
+const NAME = Object.fromEntries(ALL.map(p => [p.initial, p.name]));
+const GAMES = S.gamesMeta;
+const isCount = Object.fromEntries(GAMES.map(g => [g.name, g.isCount]));
+const datesAsc = S.dates.slice().sort();
+const DASH = { J: '', S: '7,4', P: '2,4', B: '8,3,2,3' };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function cssVar(n){ return getComputedStyle(document.body).getPropertyValue(n).trim(); }
+function pColor(k){ return cssVar('--p-' + k); }
+
+// ── state ──
+let sel = new Set(KEYS);
+let curDays = 0;
+let curGame = 'ALL';
+let smooth = 1;   // default: Raw (no rolling average)
+let mode = 'both';
+let view = 'chart';
+
+// ── date window (calendar days back from most recent) ──
+function parseYMD(k){ const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d); }
+function ymd(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+function windowDates(){
+  if (!curDays) return datesAsc.slice();
+  if (!datesAsc.length) return [];
+  const start = parseYMD(datesAsc[datesAsc.length-1]); start.setDate(start.getDate() - (curDays-1));
+  const sk = ymd(start); return datesAsc.filter(k => k >= sk);
+}
+function secOf(date, game, k){ const g = (S.perDay[date]||{}).games||{}; const c = g[game]; return c && c[k] != null ? c[k] : null; }
+function fmtSecs(t){ t = Math.round(t); const h = Math.floor(t/3600), m = Math.floor((t%3600)/60), s = t%60; return h>0 ? h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0') : m+':'+String(s).padStart(2,'0'); }
+
+// ── tiny SVG helpers (viewBox coords; CSS scales width) ──
+const W = 680, H = 300, M = { l: 48, r: 64, t: 14, b: 28 };
+function line(x1,y1,x2,y2,cls){ return '<line class="'+cls+'" x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'"/>'; }
+function txt(x,y,s,anchor,cls,fill){ return '<text x="'+x+'" y="'+y+'" text-anchor="'+(anchor||'middle')+'"'+(cls?' class="'+cls+'"':'')+(fill?' fill="'+fill+'"':'')+'>'+esc(s)+'</text>'; }
+function svgWrap(inner){ return '<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" role="img">'+inner+'</svg>'; }
+function niceTicks(min,max,n){ const span=(max-min)||1, step=Math.pow(10,Math.floor(Math.log10(span/n))); const err=n*step/span; let m=1; if(err<=0.15)m=10;else if(err<=0.35)m=5;else if(err<=0.75)m=2; const s=m*step; const t=[]; for(let v=Math.ceil(min/s)*s; v<=max+1e-9; v+=s) t.push(v); return t; }
+
+function activeKeys(){ return KEYS.filter(k => sel.has(k)); }
+
+// Generic multi-line time chart. series: [{k, pts:[{i,v,date}]}]. yFmt formats axis+labels.
+function lineChart(series, xLabels, yFmt, opts){
+  opts = opts || {};
+  const keys = series.filter(s => s.pts.length);
+  if (!keys.length) return '<div class="empty">No data in this window.</div>';
+  let vmin=Infinity, vmax=-Infinity, imax=0;
+  keys.forEach(s => s.pts.forEach(p => { vmin=Math.min(vmin,p.v); vmax=Math.max(vmax,p.v); imax=Math.max(imax,p.i); }));
+  if (opts.zeroBase) vmin = Math.min(vmin, 0);
+  if (vmin === vmax) { vmax = vmin + 1; }
+  const pad = (vmax-vmin)*0.08; vmin -= pad; vmax += pad;
+  const X = i => M.l + (imax? i/imax : 0) * (W-M.l-M.r);
+  const Y = v => H-M.b - (v-vmin)/(vmax-vmin) * (H-M.t-M.b);
+  let g = '';
+  // y grid + ticks
+  niceTicks(vmin,vmax,5).forEach(v => { const y=Y(v); g += line(M.l,y,W-M.r,y,'grid') + txt(M.l-6,y+3,yFmt(v),'end'); });
+  // x ticks (~5 dates)
+  const nx = Math.min(5, xLabels.length);
+  for (let t=0;t<nx;t++){ const idx = Math.round(t*(xLabels.length-1)/Math.max(1,nx-1)); const x=X(idx); g += txt(x,H-M.b+16,xLabels[idx]||''); }
+  g += line(M.l,H-M.b,W-M.r,H-M.b,'axis');
+  // lines + end labels + point markers with <title>
+  keys.forEach(s => {
+    const col = pColor(s.k);
+    const d = s.pts.map((p,j)=>(j?'L':'M')+X(p.i)+' '+Y(p.v)).join(' ');
+    g += '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-dasharray="'+DASH[s.k]+'" stroke-linejoin="round"/>';
+    s.pts.forEach(p => { g += '<circle cx="'+X(p.i)+'" cy="'+Y(p.v)+'" r="3" fill="'+col+'"><title>'+esc(NAME[s.k]+' · '+(p.date||'')+' · '+yFmt(p.v))+'</title></circle>'; });
+    const last = s.pts[s.pts.length-1];
+    g += txt(X(last.i)+6, Y(last.v)+4, s.k, 'start', 'lbl-end', col);
+  });
+  return svgWrap(g);
+}
+
+// ── data builders ──
+function rolling(pts, n){ if (n<=1) return pts; return pts.map((p,i)=>{ let sum=0,c=0; for(let j=Math.max(0,i-n+1);j<=i;j++){sum+=pts[j].v;c++;} return {i:p.i, v:sum/c, date:p.date}; }); }
+
+function buildElo(dates){
+  const elo = {}; KEYS.forEach(k=>elo[k]=S.eloParams.start);
+  const hist = {}; KEYS.forEach(k=>hist[k]=[]);
+  dates.forEach((date,idx) => {
+    for (const g of GAMES){
+      const played = KEYS.map(k=>({k, s:secOf(date,g.name,k)})).filter(x=>x.s!=null);
+      for (let a=0;a<played.length;a++) for (let b=a+1;b<played.length;b++){
+        const A=played[a], B=played[b]; const scoreA = A.s<B.s?1:A.s>B.s?0:0.5;
+        const eA = 1/(1+Math.pow(10,(elo[B.k]-elo[A.k])/400));
+        elo[A.k]+=S.eloParams.k*(scoreA-eA); elo[B.k]+=S.eloParams.k*((1-scoreA)-(1-eA));
+      }
+    }
+    KEYS.forEach(k=>hist[k].push({ i: idx, v: Math.round(elo[k]), date }));
+  });
+  return activeKeys().map(k=>({k, pts: hist[k]}));
+}
+
+function buildTimeTrend(dates, game){
+  return activeKeys().map(k => {
+    const pts = []; dates.forEach((date,idx)=>{ const s=secOf(date,game,k); if(s!=null) pts.push({i:idx, v:s, date}); });
+    return { k, pts: rolling(pts, smooth) };
+  });
+}
+
+function pctForDay(date, game, k){
+  const played = KEYS.map(x=>({x, s:secOf(date,game,x)})).filter(o=>o.s!=null);
+  if (played.length < 2) return null;
+  const ref = Math.min(...played.map(o=>o.s)); if (ref<=0) return null;
+  const mine = secOf(date,game,k); if (mine==null) return null;
+  return (mine-ref)/ref*100;
+}
+function buildPctTrend(dates, game){
+  const games = game==='ALL' ? GAMES.map(g=>g.name) : [game];
+  return activeKeys().map(k => {
+    const pts = [];
+    dates.forEach((date,idx)=>{ const vals = games.map(gn=>pctForDay(date,gn,k)).filter(v=>v!=null); if(vals.length) pts.push({i:idx, v: vals.reduce((a,b)=>a+b,0)/vals.length, date}); });
+    return { k, pts: rolling(pts, smooth) };
+  });
+}
+
+function buildMedalRace(dates){
+  const cum = {}; KEYS.forEach(k=>cum[k]=0);
+  const hist = {}; KEYS.forEach(k=>hist[k]=[]);
+  dates.forEach((date,idx)=>{
+    for (const g of GAMES){
+      const played = KEYS.map(k=>({k, s:secOf(date,g.name,k)})).filter(x=>x.s!=null);
+      if (played.length<2) continue;
+      const best = Math.min(...played.map(x=>x.s));
+      played.forEach(x=>{ if(x.s===best) cum[x.k]++; });
+    }
+    KEYS.forEach(k=>hist[k].push({i:idx, v:cum[k], date}));
+  });
+  return activeKeys().map(k=>({k, pts:hist[k]}));
+}
+
+function avgPctPerGame(dates){
+  // returns { game: { k: {avg, n} } }
+  const out = {};
+  for (const g of GAMES){ out[g.name] = {}; KEYS.forEach(k=>out[g.name][k]={sum:0,n:0}); }
+  dates.forEach(date=>{ for (const g of GAMES){ KEYS.forEach(k=>{ const p=pctForDay(date,g.name,k); if(p!=null){ out[g.name][k].sum+=p; out[g.name][k].n++; } }); } });
+  const res = {}; for (const g of GAMES){ res[g.name]={}; KEYS.forEach(k=>{ const c=out[g.name][k]; res[g.name][k]= c.n? c.sum/c.n : null; }); }
+  return res;
+}
+
+// ── chart 5: profile (bars or radar) ──
+let profileShape = 'bars';
+function renderProfile(dates){
+  const data = avgPctPerGame(dates); const keys = activeKeys();
+  if (!keys.length) return '<div class="empty">Select at least one player.</div>';
+  if (profileShape === 'radar') return renderRadar(data, keys);
+  // grouped bars: one group per game
+  const groups = GAMES.length; const gw = (W-M.l-M.r)/groups; const bw = Math.min(14, (gw-8)/keys.length);
+  let vmax = 0; GAMES.forEach(g=>keys.forEach(k=>{ const v=data[g.name][k]; if(v!=null) vmax=Math.max(vmax,v); }));
+  vmax = vmax||1; const pad=vmax*0.1; const top=vmax+pad;
+  const Y = v => H-M.b - v/top*(H-M.t-M.b);
+  let s='';
+  niceTicks(0,top,4).forEach(v=>{ const y=Y(v); s+=line(M.l,y,W-M.r,y,'grid')+txt(M.l-6,y+3,'+'+Math.round(v)+'%','end'); });
+  s+=line(M.l,H-M.b,W-M.r,H-M.b,'axis');
+  GAMES.forEach((g,gi)=>{
+    const gx = M.l + gi*gw; const groupW = bw*keys.length + (keys.length-1)*2;
+    const x0 = gx + (gw-groupW)/2;
+    keys.forEach((k,ki)=>{ const v=data[g.name][k]; if(v==null) return; const x=x0+ki*(bw+2); const y=Y(v); const h=H-M.b-y;
+      s+='<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+h+'" rx="3" fill="'+pColor(k)+'"><title>'+esc(NAME[k]+' · '+g.name+' · +'+v.toFixed(1)+'%')+'</title></rect>'; });
+    s+=txt(gx+gw/2, H-M.b+16, g.emoji);
+  });
+  return svgWrap(s);
+}
+function renderRadar(data, keys){
+  const cx=W/2, cy=H/2+6, R=Math.min(W,H)/2-40; const n=GAMES.length;
+  // radial value = "closeness" = 1/(1+avg%/100) so higher (outer) = better; normalize per axis to max closeness
+  const closeness = (g,k)=>{ const v=data[g.name][k]; return v==null? null : 1/(1+v/100); };
+  const axisMax = GAMES.map(g=>Math.max(...keys.map(k=>closeness(g,k)||0))||1);
+  const ang = i => -Math.PI/2 + i*2*Math.PI/n;
+  let s='';
+  // rings + spokes + labels
+  [0.25,0.5,0.75,1].forEach(r=>{ let d=''; for(let i=0;i<=n;i++){ const a=ang(i%n); d+=(i?'L':'M')+(cx+Math.cos(a)*R*r)+' '+(cy+Math.sin(a)*R*r)+' '; } s+='<path d="'+d+'" fill="none" class="grid"/>'; });
+  GAMES.forEach((g,i)=>{ const a=ang(i); s+=line(cx,cy,cx+Math.cos(a)*R,cy+Math.sin(a)*R,'grid'); s+=txt(cx+Math.cos(a)*(R+16),cy+Math.sin(a)*(R+16)+3,g.emoji); });
+  keys.forEach(k=>{ const col=pColor(k); let d=''; let any=false;
+    GAMES.forEach((g,i)=>{ const c=closeness(g,k); const r=(c==null?0:c/axisMax[i]); const a=ang(i); const x=cx+Math.cos(a)*R*r, y=cy+Math.sin(a)*R*r; d+=(i?'L':'M')+x+' '+y+' '; if(c!=null)any=true; });
+    d+='Z'; if(any) s+='<path d="'+d+'" fill="'+col+'" fill-opacity="0.12" stroke="'+col+'" stroke-width="2" stroke-dasharray="'+DASH[k]+'"/>'; });
+  return svgWrap(s);
+}
+
+// ── chart 6: box plot ──
+function quantile(sorted,q){ const pos=(sorted.length-1)*q, base=Math.floor(pos), rest=pos-base; return sorted[base+1]!==undefined ? sorted[base]+rest*(sorted[base+1]-sorted[base]) : sorted[base]; }
+function renderBox(dates, game){
+  const keys = activeKeys(); if(!keys.length) return '<div class="empty">Select at least one player.</div>';
+  const stats = keys.map(k=>{ const xs = dates.map(d=>secOf(d,game,k)).filter(v=>v!=null).sort((a,b)=>a-b);
+    if(!xs.length) return {k, empty:true};
+    return {k, min:xs[0], q1:quantile(xs,0.25), med:quantile(xs,0.5), q3:quantile(xs,0.75), max:xs[xs.length-1], n:xs.length}; });
+  const present = stats.filter(s=>!s.empty); if(!present.length) return '<div class="empty">No data in this window.</div>';
+  let vmin=Math.min(...present.map(s=>s.min)), vmax=Math.max(...present.map(s=>s.max));
+  const pad=(vmax-vmin)*0.1||1; vmin-=pad; vmax+=pad;
+  const Y=v=>H-M.b-(v-vmin)/(vmax-vmin)*(H-M.t-M.b);
+  const fmt = isCount[game] ? (v=>String(Math.round(v))) : fmtSecs;
+  const bw=Math.min(48,(W-M.l-M.r)/keys.length-24);
+  let s='';
+  niceTicks(vmin,vmax,5).forEach(v=>{ const y=Y(v); s+=line(M.l,y,W-M.r,y,'grid')+txt(M.l-6,y+3,fmt(v),'end'); });
+  const step=(W-M.l-M.r)/keys.length;
+  stats.forEach((st,i)=>{ const cx=M.l+step*(i+0.5); if(st.empty){ s+=txt(cx,H-M.b+16,st.k); return; } const col=pColor(st.k);
+    s+=line(cx,Y(st.min),cx,Y(st.max),'axis'); // whisker
+    s+='<rect x="'+(cx-bw/2)+'" y="'+Y(st.q3)+'" width="'+bw+'" height="'+(Y(st.q1)-Y(st.q3))+'" rx="3" fill="'+col+'" fill-opacity="0.22" stroke="'+col+'" stroke-width="2"><title>'+esc(NAME[st.k]+' · median '+fmt(st.med)+' · n='+st.n)+'</title></rect>';
+    s+=line(cx-bw/2,Y(st.med),cx+bw/2,Y(st.med),'')+'<line x1="'+(cx-bw/2)+'" y1="'+Y(st.med)+'" x2="'+(cx+bw/2)+'" y2="'+Y(st.med)+'" stroke="'+col+'" stroke-width="3"/>';
+    s+=txt(cx,H-M.b+16,st.k);
+  });
+  return svgWrap(s);
+}
+
+// ── chart 8: head-to-head heatmap ──
+function mix(a,b,t){ const pa=[parseInt(a.slice(1,3),16),parseInt(a.slice(3,5),16),parseInt(a.slice(5,7),16)]; const pb=[parseInt(b.slice(1,3),16),parseInt(b.slice(3,5),16),parseInt(b.slice(5,7),16)]; const r=pa.map((v,i)=>Math.round(v+(pb[i]-v)*t)); return 'rgb('+r.join(',')+')'; }
+function divColor(w){ const A=cssVar('--div-a'), Mid=cssVar('--div-mid'), Bd=cssVar('--div-b'); return w>=0.5 ? mix(Mid,A,(w-0.5)*2) : mix(Mid,Bd,(0.5-w)*2); }
+function renderH2H(dates){
+  const keys = activeKeys(); if(keys.length<2) return '<div class="empty">Select at least two players.</div>';
+  // win[a][b] over shared game-days
+  const w={}, g={}; keys.forEach(a=>{w[a]={};g[a]={};keys.forEach(b=>{w[a][b]=0;g[a][b]=0;});});
+  dates.forEach(d=>{ for(const gm of GAMES){ for(let i=0;i<keys.length;i++)for(let j=0;j<keys.length;j++){ if(i===j)continue; const a=keys[i],b=keys[j]; const sa=secOf(d,gm.name,a),sb=secOf(d,gm.name,b); if(sa==null||sb==null)continue; g[a][b]++; if(sa<sb)w[a][b]+=1; else if(sa===sb)w[a][b]+=0.5; } } });
+  const n=keys.length; const cell=Math.min(70,(W-M.l-40)/n); const ox=M.l+20, oy=30;
+  let s='';
+  keys.forEach((b,j)=> s+=txt(ox+cell*(j+0.5), oy-8, b));
+  keys.forEach((a,i)=>{ s+=txt(ox-8, oy+cell*(i+0.5)+4, a, 'end');
+    keys.forEach((b,j)=>{ const x=ox+cell*j, y=oy+cell*i; if(i===j){ s+='<rect x="'+x+'" y="'+y+'" width="'+cell+'" height="'+cell+'" fill="var(--alt)" stroke="var(--card)" stroke-width="2"/>'+txt(x+cell/2,y+cell/2+4,'—'); return; }
+      const games=g[a][b]; const rate=games? w[a][b]/games : 0.5; const fill=games?divColor(rate):'var(--alt)';
+      s+='<rect class="cell" x="'+x+'" y="'+y+'" width="'+cell+'" height="'+cell+'" fill="'+fill+'" stroke="var(--card)" stroke-width="2"><title>'+esc(NAME[a]+' beat '+NAME[b]+' '+Math.round(rate*100)+'% ('+w[a][b]+'/'+games+')')+'</title></rect>';
+      if(games) s+='<text x="'+(x+cell/2)+'" y="'+(y+cell/2+4)+'" text-anchor="middle" style="fill:var(--ink);font-weight:600">'+Math.round(rate*100)+'</text>';
+    });
+  });
+  const hh=oy+cell*n+10;
+  return '<svg class="chart" viewBox="0 0 '+W+' '+hh+'" preserveAspectRatio="xMidYMid meet" role="img">'+s+'</svg>';
+}
+
+// ── tables (accessibility: every chart has a data view) ──
+function tableFromSeries(series, xLabels, fmt){
+  const keys=series.filter(s=>s.pts.length); if(!keys.length) return '<div class="empty">No data.</div>';
+  const idxs=[...new Set(keys.flatMap(s=>s.pts.map(p=>p.i)))].sort((a,b)=>a-b);
+  let h='<tr><th>Date</th>'+keys.map(s=>'<th>'+s.k+'</th>').join('')+'</tr>';
+  const rows=idxs.map(i=>{ const cells=keys.map(s=>{ const p=s.pts.find(p=>p.i===i); return '<td>'+(p?fmt(p.v):'—')+'</td>'; }).join(''); return '<tr><td>'+(xLabels[i]||'')+'</td>'+cells+'</tr>'; }).join('');
+  return '<table class="datatable"><thead>'+h+'</thead><tbody>'+rows+'</tbody></table>';
+}
+
+// ── orchestration ──
+function render(){
+  const dates = windowDates();
+  const xLabels = dates.map(d=>d.slice(5)); // MM-DD
+  const game = curGame==='ALL' ? GAMES[0].name : curGame;
+  const gameLabel = curGame==='ALL' ? 'all games' : curGame;
+  document.querySelectorAll('#card-timeTrend .gname').forEach(e=>e.textContent = (curGame==='ALL'?GAMES[0].name+' (pick a game)':curGame));
+  document.querySelectorAll('#card-pctTrend .gname').forEach(e=>e.textContent = gameLabel);
+  document.querySelectorAll('#card-box .gname').forEach(e=>e.textContent = (curGame==='ALL'?GAMES[0].name:curGame));
+
+  const scope = curDays>0 ? ('last '+curDays+' days') : 'all time';
+  document.getElementById('sub').textContent = 'Visual analytics · '+scope+' · '+dates.length+' day(s)'+(dates.length?' ('+dates[0]+' → '+dates[dates.length-1]+')':'');
+
+  const secFmt = v=>fmtSecs(v);
+  const eloSeries = buildElo(dates);
+  const ttSeries = buildTimeTrend(dates, game);
+  const ptSeries = buildPctTrend(dates, game);
+  const mrSeries = buildMedalRace(dates);
+
+  put('card-elo',   view==='table' ? tableFromSeries(eloSeries,xLabels,v=>Math.round(v)) : lineChart(eloSeries,xLabels,v=>Math.round(v)));
+  put('card-timeTrend', view==='table' ? tableFromSeries(ttSeries,xLabels,isCount[game]?v=>v.toFixed(1):secFmt) : lineChart(ttSeries,xLabels,isCount[game]?v=>Math.round(v):secFmt));
+  put('card-pctTrend',  view==='table' ? tableFromSeries(ptSeries,xLabels,v=>'+'+v.toFixed(0)+'%') : lineChart(ptSeries,xLabels,v=>'+'+Math.round(v)+'%',{zeroBase:true}));
+  put('card-medalRace', view==='table' ? tableFromSeries(mrSeries,xLabels,v=>v) : lineChart(mrSeries,xLabels,v=>Math.round(v),{zeroBase:true}));
+  put('card-profile',   view==='table' ? profileTable(dates) : renderProfile(dates));
+  put('card-box',       view==='table' ? boxTable(dates,game) : renderBox(dates, game));
+  put('card-h2h',       renderH2H(dates)); // matrix is already its own table-like grid
+
+  applyMode();
+}
+function put(id, html){ document.querySelector('#'+id+' .body').innerHTML = html; }
+function profileTable(dates){ const data=avgPctPerGame(dates); const keys=activeKeys(); let h='<tr><th>Game</th>'+keys.map(k=>'<th>'+k+'</th>').join('')+'</tr>'; const rows=GAMES.map(g=>'<tr><td>'+g.emoji+' '+esc(g.name)+'</td>'+keys.map(k=>{const v=data[g.name][k];return '<td>'+(v==null?'—':'+'+v.toFixed(1)+'%')+'</td>';}).join('')+'</tr>').join(''); return '<table class="datatable"><thead>'+h+'</thead><tbody>'+rows+'</tbody></table>'; }
+function boxTable(dates,game){ const keys=activeKeys(); const fmt=isCount[game]?(v=>String(Math.round(v))):fmtSecs; let h='<tr><th>Player</th><th>min</th><th>Q1</th><th>median</th><th>Q3</th><th>max</th><th>n</th></tr>'; const rows=keys.map(k=>{const xs=dates.map(d=>secOf(d,game,k)).filter(v=>v!=null).sort((a,b)=>a-b); if(!xs.length)return '<tr><td>'+k+'</td><td colspan=6>—</td></tr>'; return '<tr><td>'+k+'</td><td>'+fmt(xs[0])+'</td><td>'+fmt(quantile(xs,0.25))+'</td><td>'+fmt(quantile(xs,0.5))+'</td><td>'+fmt(quantile(xs,0.75))+'</td><td>'+fmt(xs[xs.length-1])+'</td><td>'+xs.length+'</td></tr>';}).join(''); return '<table class="datatable"><thead>'+h+'</thead><tbody>'+rows+'</tbody></table>'; }
+
+// show/hide cards by compare mode
+function applyMode(){ document.querySelectorAll('.card[data-group]').forEach(c=>{ const grp=c.dataset.group; c.style.display = (mode==='both'||mode===grp) ? '' : 'none'; }); }
+
+// ── legend + chips ──
+function renderLegend(){
+  document.getElementById('legend').innerHTML = ALL.map(p=>{ const on=sel.has(p.initial); const col=pColor(p.initial);
+    return '<span class="item" style="opacity:'+(on?1:0.4)+'"><svg width="26" height="10"><line x1="0" y1="5" x2="26" y2="5" stroke="'+col+'" stroke-width="2" stroke-dasharray="'+DASH[p.initial]+'"/></svg>'+esc(p.initial)+' · '+esc(p.name)+'</span>'; }).join('');
+}
+function renderChips(){
+  document.getElementById('playerChips').innerHTML = ALL.map(p=>{ const on=sel.has(p.initial);
+    return '<span class="chip '+(on?'on':'off')+'" data-k="'+p.initial+'" style="'+(on?'color:'+pColor(p.initial):'')+'"><span class="dot" style="background:'+pColor(p.initial)+'"></span>'+esc(p.initial)+'</span>'; }).join(' ');
+  document.querySelectorAll('#playerChips .chip').forEach(ch=>ch.addEventListener('click',()=>{ const k=ch.dataset.k; if(sel.has(k)){ if(sel.size>1) sel.delete(k); } else sel.add(k); renderChips(); renderLegend(); render(); }));
+}
+
+// ── wire controls ──
+function initGameSel(){ const s=document.getElementById('gameSel'); s.innerHTML='<option value="ALL">All games</option>'+GAMES.map(g=>'<option value="'+esc(g.name)+'">'+g.emoji+' '+esc(g.name)+'</option>').join(''); s.value='ALL'; }
+document.getElementById('gameSel').addEventListener('change',e=>{ curGame=e.target.value; render(); });
+document.querySelectorAll('#rangeToggle button').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('#rangeToggle button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); document.getElementById('customDays').value=''; curDays=Number(b.dataset.days); render(); }));
+document.getElementById('customDays').addEventListener('input',e=>{ const n=Number(e.target.value); if(n>0){ document.querySelectorAll('#rangeToggle button').forEach(x=>x.classList.remove('active')); curDays=n; render(); } });
+document.querySelectorAll('#smoothToggle button').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('#smoothToggle button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); smooth=Number(b.dataset.n); render(); }));
+// Smoothing info popover: hover/focus shown via CSS; also toggle on click (touch) + dismiss.
+(function(){ const btn=document.getElementById('smoothInfo'); const tip=btn.parentElement.querySelector('.tip');
+  btn.addEventListener('click',e=>{ e.stopPropagation(); tip.classList.toggle('show'); });
+  document.addEventListener('click',e=>{ if(!btn.parentElement.contains(e.target)) tip.classList.remove('show'); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') tip.classList.remove('show'); });
+})();
+document.querySelectorAll('#modeToggle button').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('#modeToggle button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); mode=b.dataset.mode; applyMode(); }));
+document.querySelectorAll('#viewToggle button').forEach(b=>b.addEventListener('click',()=>{ document.querySelectorAll('#viewToggle button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); view=b.dataset.v; render(); }));
+document.getElementById('profileShape').addEventListener('click',e=>{ e.preventDefault(); profileShape = profileShape==='bars'?'radar':'bars'; e.target.textContent = profileShape==='bars'?'radar':'bars'; render(); });
+
+// re-render on dark/light change (heatmap colors are computed in JS)
+if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+
+initGameSel(); renderChips(); renderLegend(); render();
+</script>
+</body>
+</html>
